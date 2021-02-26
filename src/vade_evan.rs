@@ -14,33 +14,30 @@
   limitations under the License.
 */
 
-use crate::{
-    application::{
-        datatypes::{
-            Credential,
-            CredentialDefinition,
-            CredentialOffer,
-            CredentialPrivateKey,
-            CredentialProposal,
-            CredentialRequest,
-            CredentialSchema,
-            CredentialSecretsBlindingFactors,
-            MasterSecret,
-            ProofPresentation,
-            ProofRequest,
-            ProofVerification,
-            RevocationIdInformation,
-            RevocationKeyPrivate,
-            RevocationRegistryDefinition,
-            RevocationState,
-            SchemaProperty,
-            SubProofRequest,
-        },
-        issuer::Issuer,
-        prover::Prover,
-        verifier::Verifier,
+use crate::application::{
+    datatypes::{
+        Credential,
+        CredentialDefinition,
+        CredentialOffer,
+        CredentialPrivateKey,
+        CredentialProposal,
+        CredentialRequest,
+        CredentialSchema,
+        CredentialSecretsBlindingFactors,
+        MasterSecret,
+        ProofPresentation,
+        ProofRequest,
+        ProofVerification,
+        RevocationIdInformation,
+        RevocationKeyPrivate,
+        RevocationRegistryDefinition,
+        RevocationState,
+        SchemaProperty,
+        SubProofRequest,
     },
-    signing::Signer,
+    issuer::Issuer,
+    prover::Prover,
+    verifier::Verifier,
 };
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -50,6 +47,7 @@ use ursa::{
     cl::{constants::LARGE_PRIME, helpers::generate_safe_prime, Witness},
 };
 use vade::{Vade, VadePlugin, VadePluginResultValue};
+use vade_evan_substrate::signing::Signer;
 
 const EVAN_METHOD: &str = "did:evan";
 const EVAN_METHOD_ZKP: &str = "did:evan:zkp";

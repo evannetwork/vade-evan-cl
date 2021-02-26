@@ -35,7 +35,6 @@ use crate::{
         prover::Prover,
     },
     crypto::{crypto_issuer::Issuer as CryptoIssuer, crypto_utils::create_assertion_proof},
-    signing::Signer,
     utils::utils::{generate_uuid, get_now_as_iso_string},
 };
 use std::{
@@ -53,6 +52,7 @@ use ursa::{
         RevocationTailsGenerator,
     },
 };
+use vade_evan_substrate::signing::Signer;
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::{SystemTime, UNIX_EPOCH};

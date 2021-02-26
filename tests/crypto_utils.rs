@@ -14,7 +14,7 @@
   limitations under the License.
 */
 
-extern crate vade_evan;
+extern crate vade_evan_cl;
 
 mod test_data;
 
@@ -31,11 +31,11 @@ use test_data::{
     environment::DEFAULT_VADE_EVAN_SIGNING_URL,
     vc_zkp::EXAMPLE_CREDENTIAL_SCHEMA,
 };
-use vade_evan::{
+use vade_evan_cl::{
     application::datatypes::{CredentialSchema, SchemaProperty},
     crypto::crypto_utils::{create_assertion_proof, recover_address_and_data, JwsData},
-    signing::{LocalSigner, RemoteSigner, Signer},
 };
+use vade_evan_substrate::signing::{LocalSigner, RemoteSigner, Signer};
 
 #[derive(Serialize, Deserialize)]
 struct JwsDoc {

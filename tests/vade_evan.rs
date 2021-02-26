@@ -43,7 +43,7 @@ use test_data::{
 use ursa::bn::BigNumber;
 use ursa::cl::{CredentialSecretsBlindingFactors, Witness};
 use vade::Vade;
-use vade_evan::{
+use vade_evan_cl::{
     application::{
         datatypes::{
             Credential,
@@ -64,11 +64,14 @@ use vade_evan::{
         },
         prover::Prover,
     },
-    resolver::{ResolverConfig, SubstrateDidResolverEvan},
-    signing::{LocalSigner, Signer},
     CreateRevocationRegistryDefinitionResult,
     IssueCredentialResult,
     VadeEvan,
+};
+use vade_evan_substrate::{
+    signing::{LocalSigner, Signer},
+    ResolverConfig,
+    VadeEvanSubstrate,
 };
 
 const EVAN_METHOD: &str = "did:evan";
@@ -1115,9 +1118,9 @@ fn get_options() -> String {
     )
 }
 
-fn get_resolver() -> SubstrateDidResolverEvan {
+fn get_resolver() -> VadeEvanSubstrate {
     let signer: Box<dyn Signer> = Box::new(LocalSigner::new());
-    SubstrateDidResolverEvan::new(ResolverConfig {
+    VadeEvanSubstrate::new(ResolverConfig {
         signer,
         target: env::var("VADE_EVAN_SUBSTRATE_IP")
             .unwrap_or_else(|_| DEFAULT_VADE_EVAN_SUBSTRATE_IP.to_string()),

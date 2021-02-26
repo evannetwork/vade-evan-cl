@@ -16,7 +16,7 @@
 
 extern crate env_logger;
 extern crate log;
-extern crate vade_evan;
+extern crate vade_evan_cl;
 
 mod test_data;
 
@@ -26,14 +26,14 @@ use test_data::{
     did::{EXAMPLE_DID_1, EXAMPLE_DID_DOCUMENT_1},
     vc_zkp::EXAMPLE_CREDENTIAL_SCHEMA,
 };
-use vade_evan::{
+use vade_evan_cl::{
     application::{
         datatypes::{CredentialSchema, SchemaProperty},
         issuer::Issuer,
     },
     crypto::crypto_utils::check_assertion_proof,
-    signing::{LocalSigner, Signer},
 };
+use vade_evan_substrate::signing::{LocalSigner, Signer};
 
 #[tokio::test]
 async fn can_create_schema() -> Result<(), Box<dyn Error>> {

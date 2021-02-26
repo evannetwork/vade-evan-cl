@@ -267,7 +267,7 @@ impl Prover {
     /// # Example
     /// ```
     /// # use std::collections::HashMap;
-    /// # use vade_evan::application::prover::Prover;
+    /// # use vade_evan_cl::application::prover::Prover;
     /// let mut values: HashMap<String, String> = HashMap::new();
     /// values.insert("string".to_owned(), "101 Wilson Lane".to_owned());
     /// let encoded = Prover::encode_values(values);
@@ -318,7 +318,7 @@ impl Prover {
     pub fn create_master_secret() -> MasterSecret {
         match CryptoProver::create_master_secret() {
             Ok(secret) => secret,
-            Err(e) => panic!(e), // TODO how to handle error
+            Err(e) => panic!("{}", e),
         }
     }
 

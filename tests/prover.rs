@@ -14,10 +14,10 @@
   limitations under the License.
 */
 
-extern crate vade_evan;
+extern crate vade_evan_cl;
 
 use std::{collections::HashMap, error::Error};
-use vade_evan::application::prover::Prover;
+use vade_evan_cl::application::prover::Prover;
 
 #[test]
 fn encodes_values_correctly() -> Result<(), Box<dyn Error>> {

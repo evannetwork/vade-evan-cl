@@ -14,15 +14,15 @@
   limitations under the License.
 */
 
-extern crate vade_evan;
+extern crate vade_evan_cl;
 
 mod test_data;
 
 use std::{collections::HashMap, error::Error};
 use test_data::vc_zkp::EXAMPLE_CREDENTIAL_SCHEMA;
-use vade_evan::application::datatypes::CredentialSchema;
-use vade_evan::crypto::crypto_datatypes::CryptoCredentialDefinition;
-use vade_evan::crypto::crypto_issuer::Issuer as CryptoIssuer;
+use vade_evan_cl::application::datatypes::CredentialSchema;
+use vade_evan_cl::crypto::crypto_datatypes::CryptoCredentialDefinition;
+use vade_evan_cl::crypto::crypto_issuer::Issuer as CryptoIssuer;
 
 #[test]
 fn can_create_credential_definition() -> Result<(), Box<dyn Error>> {
