@@ -66,7 +66,7 @@ use vade_evan_cl::{
     },
     CreateRevocationRegistryDefinitionResult,
     IssueCredentialResult,
-    VadeEvan,
+    VadeEvanCl,
 };
 use vade_evan_substrate::{
     signing::{LocalSigner, Signer},
@@ -1135,14 +1135,14 @@ fn get_vade() -> Vade {
     vade
 }
 
-fn get_vade_evan() -> VadeEvan {
+fn get_vade_evan() -> VadeEvanCl {
     // vade to work with
     let substrate_resolver = get_resolver();
     let mut internal_vade = Vade::new();
     internal_vade.register_plugin(Box::from(substrate_resolver));
 
     let signer: Box<dyn Signer> = Box::new(LocalSigner::new());
-    VadeEvan::new(internal_vade, signer)
+    VadeEvanCl::new(internal_vade, signer)
 }
 
 async fn issue_credential(

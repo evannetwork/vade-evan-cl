@@ -124,11 +124,11 @@ pub mod utils;
 
 pub mod application;
 pub mod crypto;
-mod vade_evan;
+mod vade_evan_cl;
 
 // wasm only
 #[cfg(target_arch = "wasm32")]
 pub mod wasm_lib;
 
 // --------- use
-pub use self::vade_evan::*;
+pub use self::vade_evan_cl::*;
