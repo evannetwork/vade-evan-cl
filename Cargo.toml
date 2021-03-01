@@ -49,7 +49,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0.53", features = ["preserve_order", "raw_value"] }
 sha2 = "0.8.1"
 sha3 = "0.8.2"
-tokio = { version = "0.2.22" }
+tokio = { version = "0.2.22", optional = true }
 ursa = { version = "0.3.5",  default-features = false }
 # ursa = { path = "./../ursa/libursa", default-features = false }
 # ursa = { git = "https://github.com/evannetwork/ursa", branch = "portable-native",  default-features = false }
@@ -57,7 +57,7 @@ uuid = { version = "0.8.1", features = ["serde", "v4", "wasm-bindgen"] }
 vade = "0.0.8"
 # vade = { path = "../vade" }
 # vade = { git = "https://github.com/evannetwork/vade", branch = "develop" }
-# vade_evan_substrate = "0.0.1"
+# vade-evan-substrate = "0.0.1"
 vade-evan-substrate = { path = "../vade-evan-substrate" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
