@@ -24,10 +24,11 @@ wasm-opt = ["-Oz", "--enable-mutable-globals"]
 # default feature set
 default = ["portable"]
 
-# default ursa setup
 portable = [
-    # "ursa/portable",
-    "ursa/portable_native",
+    # default ursa build
+    "ursa/portable",
+    # faster, relies on native features on platform, not compatible with released ursa
+    # "ursa/portable_native",
 ]
 
 # build to run as wasm file; not compatible with `native` feature
@@ -49,9 +50,9 @@ serde_json = { version = "1.0.53", features = ["preserve_order", "raw_value"] }
 sha2 = "0.8.1"
 sha3 = "0.8.2"
 tokio = { version = "0.2.22" }
-# ursa = { version = "0.3.5",  default-features = false }
+ursa = { version = "0.3.5",  default-features = false }
 # ursa = { path = "./../ursa/libursa", default-features = false }
-ursa = { git = "https://github.com/evannetwork/ursa", branch = "portable-native",  default-features = false }
+# ursa = { git = "https://github.com/evannetwork/ursa", branch = "portable-native",  default-features = false }
 uuid = { version = "0.8.1", features = ["serde", "v4", "wasm-bindgen"] }
 vade = "0.0.8"
 # vade = { path = "../vade" }
