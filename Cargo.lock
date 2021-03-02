@@ -2397,8 +2397,6 @@ dependencies = [
 [[package]]
 name = "vade"
 version = "0.0.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5ac190e086d9bf70dce03dacbfc12c987f5ac3ac0f32c0e43072410d558eb2c9"
 dependencies = [
  "async-trait",
  "env_logger",
