@@ -13,13 +13,14 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 */
-
-mod test_data;
+extern crate utilities;
 
 use regex::Regex;
 use serde_json::Value;
 use std::{collections::HashMap, env, error::Error};
-use test_data::{
+use ursa::bn::BigNumber;
+use ursa::cl::{CredentialSecretsBlindingFactors, Witness};
+use utilities::test_data::{
     accounts::local::{
         ISSUER_DID,
         ISSUER_PRIVATE_KEY,
@@ -40,8 +41,6 @@ use test_data::{
         SUBJECT_DID,
     },
 };
-use ursa::bn::BigNumber;
-use ursa::cl::{CredentialSecretsBlindingFactors, Witness};
 use vade::Vade;
 use vade_evan_cl::{
     application::{
@@ -75,6 +74,7 @@ use vade_evan_substrate::{
 };
 
 const EVAN_METHOD: &str = "did:evan";
+const TYPE_OPTIONS: &str = r#"{ "type": "cl" }"#;
 
 // TODO: Test multi-proof presentations
 // TODO: Test revocation
@@ -87,7 +87,7 @@ async fn can_be_registered_as_plugin() -> Result<(), Box<dyn Error>> {
 
     // run test
     let results = vade
-        .vc_zkp_create_credential_proposal(EVAN_METHOD, "", "")
+        .vc_zkp_create_credential_proposal(EVAN_METHOD, TYPE_OPTIONS, "")
         .await;
 
     // check results
@@ -875,7 +875,7 @@ async fn can_create_safe_primes() -> Result<(), Box<dyn Error>> {
     let mut vade = get_vade();
 
     let results = vade
-        .run_custom_function(EVAN_METHOD, "generate_safe_prime", "", "")
+        .run_custom_function(EVAN_METHOD, "generate_safe_prime", TYPE_OPTIONS, "")
         .await?;
 
     assert_eq!(results.len(), 1);
@@ -921,7 +921,7 @@ async fn create_credential_offer(
     let payload = serde_json::to_string(&message_value).unwrap();
 
     let results = vade
-        .vc_zkp_create_credential_offer(EVAN_METHOD, "", &payload)
+        .vc_zkp_create_credential_offer(EVAN_METHOD, TYPE_OPTIONS, &payload)
         .await?;
 
     // check results
@@ -944,7 +944,7 @@ async fn create_credential_proposal(
         ISSUER_DID, SUBJECT_DID, schema.id
     );
     let results = vade
-        .vc_zkp_create_credential_proposal(EVAN_METHOD, "", &payload)
+        .vc_zkp_create_credential_proposal(EVAN_METHOD, TYPE_OPTIONS, &payload)
         .await?;
 
     // check results
@@ -975,7 +975,7 @@ async fn create_credential_request(
         serde_json::to_string(&master_secret).unwrap()
     );
     let results = vade
-        .vc_zkp_request_credential(EVAN_METHOD, "", &payload)
+        .vc_zkp_request_credential(EVAN_METHOD, TYPE_OPTIONS, &payload)
         .await?;
 
     // check results
@@ -1007,7 +1007,7 @@ async fn create_two_property_credential_request(
         serde_json::to_string(&master_secret).unwrap()
     );
     let results = vade
-        .vc_zkp_request_credential(EVAN_METHOD, "", &payload)
+        .vc_zkp_request_credential(EVAN_METHOD, TYPE_OPTIONS, &payload)
         .await?;
 
     // check results
@@ -1038,7 +1038,7 @@ async fn create_credential_request_with_missing_required_property(
         serde_json::to_string(&master_secret).unwrap()
     );
     let results = vade
-        .vc_zkp_request_credential(EVAN_METHOD, "", &payload)
+        .vc_zkp_request_credential(EVAN_METHOD, TYPE_OPTIONS, &payload)
         .await?;
 
     // check results
@@ -1111,6 +1111,7 @@ async fn create_revocation_registry_definition(
 fn get_options() -> String {
     format!(
         r###"{{
+            "type": "cl",
             "privateKey": "{}",
             "identity": "{}"
         }}"###,
@@ -1181,7 +1182,7 @@ async fn issue_credential(
         serde_json::to_string(&master_secret).unwrap(),
     );
     let results = vade
-        .vc_zkp_issue_credential(EVAN_METHOD, "", &payload)
+        .vc_zkp_issue_credential(EVAN_METHOD, TYPE_OPTIONS, &payload)
         .await?;
 
     // check results
@@ -1210,7 +1211,9 @@ async fn request_proof(
         }}"###,
         ISSUER_DID, SUBJECT_DID, schema.id,
     );
-    let results = vade.vc_zkp_request_proof(EVAN_METHOD, "", &payload).await?;
+    let results = vade
+        .vc_zkp_request_proof(EVAN_METHOD, TYPE_OPTIONS, &payload)
+        .await?;
 
     // check results
     assert_eq!(results.len(), 1);
@@ -1279,7 +1282,9 @@ async fn present_proof(
         serde_json::to_string(&witnesses).unwrap(),
         serde_json::to_string(&master_secret).unwrap(),
     );
-    let results = vade.vc_zkp_present_proof(EVAN_METHOD, "", &payload).await?;
+    let results = vade
+        .vc_zkp_present_proof(EVAN_METHOD, TYPE_OPTIONS, &payload)
+        .await?;
 
     // check results
     assert_eq!(results.len(), 1);
@@ -1301,7 +1306,9 @@ async fn verify_proof(
         serde_json::to_string(presented_proof).unwrap(),
         serde_json::to_string(proof_request).unwrap()
     );
-    let results = vade.vc_zkp_verify_proof(EVAN_METHOD, "", &payload).await?;
+    let results = vade
+        .vc_zkp_verify_proof(EVAN_METHOD, TYPE_OPTIONS, &payload)
+        .await?;
 
     // check results
     assert_eq!(results.len(), 1);
