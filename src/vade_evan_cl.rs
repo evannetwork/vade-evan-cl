@@ -56,6 +56,7 @@ use vade_evan_substrate::signing::Signer;
 
 const EVAN_METHOD: &str = "did:evan";
 const EVAN_METHOD_ZKP: &str = "did:evan:zkp";
+const PROOF_METHOD_CL: &str = "cl";
 
 macro_rules! parse {
     ($data:expr, $type_name:expr) => {{
@@ -73,6 +74,25 @@ macro_rules! get_document {
             .ok_or_else(|| format!("could not get {} did document", $type_name))?;
         parse!(&result_str, &$type_name)
     }};
+}
+
+macro_rules! ignore_unrelated {
+    ($method:expr, $options:expr) => {{
+        if $method != EVAN_METHOD {
+            return Ok(VadePluginResultValue::Ignored);
+        }
+        let type_options: TypeOptions = parse!($options, "options");
+        match type_options.r#type.as_deref() {
+            Some(PROOF_METHOD_CL) => (),
+            _ => return Ok(VadePluginResultValue::Ignored),
+        };
+    }};
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TypeOptions {
+    pub r#type: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -302,18 +322,16 @@ impl VadePlugin for VadeEvanCl {
     ///
     /// * `method` - method to call a function for (e.g. "did:example")
     /// * `function` - currently only supports `generate_safe_prime`
-    /// * `_options` - currently not used, so can be left empty
+    /// * `options` - serialized [`TypeOptions`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.TypeOptions.html)
     /// * `_payload` - currently not used, so can be left empty
     async fn run_custom_function(
         &mut self,
         method: &str,
         function: &str,
-        _options: &str,
+        options: &str,
         _payload: &str,
     ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
-        if method != EVAN_METHOD {
-            return Ok(VadePluginResultValue::Ignored);
-        }
+        ignore_unrelated!(method, options);
         match function {
             "generate_safe_prime" => Ok(VadePluginResultValue::Success(Some(
                 VadeEvanCl::generate_safe_prime()?,
@@ -355,9 +373,7 @@ impl VadePlugin for VadeEvanCl {
         options: &str,
         payload: &str,
     ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
-        if method != EVAN_METHOD {
-            return Ok(VadePluginResultValue::Ignored);
-        }
+        ignore_unrelated!(method, options);
         let options: AuthenticationOptions = parse!(&options, "options");
         let payload: CreateCredentialDefinitionPayload = parse!(&payload, "payload");
         let schema: CredentialSchema = get_document!(&mut self.vade, &payload.schema_did, "schema");
@@ -409,9 +425,7 @@ impl VadePlugin for VadeEvanCl {
         options: &str,
         payload: &str,
     ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
-        if method != EVAN_METHOD {
-            return Ok(VadePluginResultValue::Ignored);
-        }
+        ignore_unrelated!(method, options);
         let options: AuthenticationOptions = parse!(&options, "options");
         let payload: CreateCredentialSchemaPayload = parse!(&payload, "payload");
 
@@ -465,9 +479,7 @@ impl VadePlugin for VadeEvanCl {
         options: &str,
         payload: &str,
     ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
-        if method != EVAN_METHOD {
-            return Ok(VadePluginResultValue::Ignored);
-        }
+        ignore_unrelated!(method, options);
         let options: AuthenticationOptions = parse!(&options, "options");
         let payload: CreateRevocationRegistryDefinitionPayload = parse!(&payload, "payload");
         let definition: CredentialDefinition = get_document!(
@@ -516,7 +528,7 @@ impl VadePlugin for VadeEvanCl {
     /// # Arguments
     ///
     /// * `method` - method to issue a credential for (e.g. "did:example")
-    /// * `_options` - no authenticated request required, so can be left empty
+    /// * `options` - serialized [`TypeOptions`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.TypeOptions.html)
     /// * `payload` - serialized [`IssueCredentialPayload`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.IssueCredentialPayload.html)
     ///
     /// # Returns
@@ -525,12 +537,10 @@ impl VadePlugin for VadeEvanCl {
     async fn vc_zkp_issue_credential(
         &mut self,
         method: &str,
-        _options: &str,
+        options: &str,
         payload: &str,
     ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
-        if method != EVAN_METHOD {
-            return Ok(VadePluginResultValue::Ignored);
-        }
+        ignore_unrelated!(method, options);
         let payload: IssueCredentialPayload = parse!(&payload, "payload");
         let definition: CredentialDefinition = get_document!(
             &mut self.vade,
@@ -588,7 +598,7 @@ impl VadePlugin for VadeEvanCl {
     /// # Arguments
     ///
     /// * `method` - method to create a credential offer for (e.g. "did:example")
-    /// * `_options` - no authenticated request required, so can be left empty
+    /// * `options` - serialized [`TypeOptions`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.TypeOptions.html)
     /// * `payload` - serialized [`OfferCredentialPayload`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.OfferCredentialPayload.html)
     ///
     /// # Returns
@@ -596,12 +606,10 @@ impl VadePlugin for VadeEvanCl {
     async fn vc_zkp_create_credential_offer(
         &mut self,
         method: &str,
-        _options: &str,
+        options: &str,
         payload: &str,
     ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
-        if method != EVAN_METHOD {
-            return Ok(VadePluginResultValue::Ignored);
-        }
+        ignore_unrelated!(method, options);
         let payload: OfferCredentialPayload = parse!(&payload, "payload");
         let result: CredentialOffer = Issuer::offer_credential(
             &payload.issuer,
@@ -621,7 +629,7 @@ impl VadePlugin for VadeEvanCl {
     /// # Arguments
     ///
     /// * `method` - method to presents a proof for (e.g. "did:example")
-    /// * `_options` - no authenticated request required, so can be left empty
+    /// * `options` - serialized [`TypeOptions`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.TypeOptions.html)
     /// * `payload` - serialized [`PresentProofPayload`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.PresentProofPayload.html)
     ///
     /// # Returns
@@ -629,12 +637,10 @@ impl VadePlugin for VadeEvanCl {
     async fn vc_zkp_present_proof(
         &mut self,
         method: &str,
-        _options: &str,
+        options: &str,
         payload: &str,
     ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
-        if method != EVAN_METHOD {
-            return Ok(VadePluginResultValue::Ignored);
-        }
+        ignore_unrelated!(method, options);
         let payload: PresentProofPayload = parse!(&payload, "payload");
 
         // Resolve all necessary credential definitions, schemas and registries
@@ -696,7 +702,7 @@ impl VadePlugin for VadeEvanCl {
     /// # Arguments
     ///
     /// * `method` - method to create a credential proposal for (e.g. "did:example")
-    /// * `_options` - no authenticated request required, so can be left empty
+    /// * `options` - serialized [`TypeOptions`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.TypeOptions.html)
     /// * `payload` - serialized [`CreateCredentialProposalPayload`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.CreateCredentialProposalPayload.html)
     ///
     /// # Returns
@@ -704,12 +710,10 @@ impl VadePlugin for VadeEvanCl {
     async fn vc_zkp_create_credential_proposal(
         &mut self,
         method: &str,
-        _options: &str,
+        options: &str,
         payload: &str,
     ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
-        if method != EVAN_METHOD {
-            return Ok(VadePluginResultValue::Ignored);
-        }
+        ignore_unrelated!(method, options);
         let payload: CreateCredentialProposalPayload = parse!(&payload, "payload");
         let result: CredentialProposal =
             Prover::propose_credential(&payload.issuer, &payload.subject, &payload.schema);
@@ -727,7 +731,7 @@ impl VadePlugin for VadeEvanCl {
     /// # Arguments
     ///
     /// * `method` - method to request a credential for (e.g. "did:example")
-    /// * `_options` - no authenticated request required, so can be left empty
+    /// * `options` - serialized [`TypeOptions`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.TypeOptions.html)
     /// * `payload` - serialized [`RequestCredentialPayload`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.RequestCredentialPayload.html)
     ///
     /// # Returns
@@ -735,12 +739,10 @@ impl VadePlugin for VadeEvanCl {
     async fn vc_zkp_request_credential(
         &mut self,
         method: &str,
-        _options: &str,
+        options: &str,
         payload: &str,
     ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
-        if method != EVAN_METHOD {
-            return Ok(VadePluginResultValue::Ignored);
-        }
+        ignore_unrelated!(method, options);
         let payload: RequestCredentialPayload = serde_json::from_str(&payload)
             .map_err(|e| format!("{} when parsing payload {}", &e, &payload))?;
         let definition: CredentialDefinition = get_document!(
@@ -771,7 +773,7 @@ impl VadePlugin for VadeEvanCl {
     /// # Arguments
     ///
     /// * `method` - method to request a proof for (e.g. "did:example")
-    /// * `_options` - no authenticated request required, so can be left empty
+    /// * `options` - serialized [`TypeOptions`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.TypeOptions.html)
     /// * `payload` - serialized [`RequestProofPayload`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.RequestProofPayload.html)
     ///
     /// # Returns
@@ -779,12 +781,10 @@ impl VadePlugin for VadeEvanCl {
     async fn vc_zkp_request_proof(
         &mut self,
         method: &str,
-        _options: &str,
+        options: &str,
         payload: &str,
     ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
-        if method != EVAN_METHOD {
-            return Ok(VadePluginResultValue::Ignored);
-        }
+        ignore_unrelated!(method, options);
         let payload: RequestProofPayload = parse!(&payload, "payload");
         let result: ProofRequest = Verifier::request_proof(
             &payload.verifier_did,
@@ -819,9 +819,7 @@ impl VadePlugin for VadeEvanCl {
         options: &str,
         payload: &str,
     ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
-        if method != EVAN_METHOD {
-            return Ok(VadePluginResultValue::Ignored);
-        }
+        ignore_unrelated!(method, options);
         let options: AuthenticationOptions = parse!(&options, "options");
         let payload: RevokeCredentialPayload = parse!(&payload, "payload");
         let rev_def: RevocationRegistryDefinition = get_document!(
@@ -858,7 +856,7 @@ impl VadePlugin for VadeEvanCl {
     /// # Arguments
     ///
     /// * `method` - method to verify a proof for (e.g. "did:example")
-    /// * `_options` - no authenticated request required, so can be left empty
+    /// * `options` - serialized [`TypeOptions`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.TypeOptions.html)
     /// * `payload` - serialized [`ValidateProofPayload`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.ValidateProofPayload.html)
     ///
     /// # Returns
@@ -866,12 +864,10 @@ impl VadePlugin for VadeEvanCl {
     async fn vc_zkp_verify_proof(
         &mut self,
         method: &str,
-        _options: &str,
+        options: &str,
         payload: &str,
     ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
-        if method != EVAN_METHOD {
-            return Ok(VadePluginResultValue::Ignored);
-        }
+        ignore_unrelated!(method, options);
         let payload: ValidateProofPayload = parse!(&payload, "payload");
 
         // Resolve all necessary credential definitions, schemas and registries
