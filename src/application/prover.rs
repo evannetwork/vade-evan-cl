@@ -315,11 +315,9 @@ impl Prover {
     }
 
     /// Create a new master secret to be stored privately on the prover's site.
-    pub fn create_master_secret() -> MasterSecret {
-        match CryptoProver::create_master_secret() {
-            Ok(secret) => secret,
-            Err(e) => panic!("{}", e),
-        }
+    pub fn create_master_secret() -> Result<MasterSecret, Box<dyn Error>> {
+        CryptoProver::create_master_secret()
+            .map_err(|err| Box::from(format!("could not create master secret; {}", &err)))
     }
 
     /// Incorporate the prover's master secret into the credential signature after issuance.
@@ -375,6 +373,7 @@ impl Prover {
     }
 
     /// Updates the revocation state associated with a credential.
+    /// Not used at the moment but will be needed for revocation.
     ///
     /// # Arguments
     /// * `revocation_state` - Current revocation state (that is to be updated)
@@ -382,6 +381,7 @@ impl Prover {
     ///
     /// # Returns
     /// * `RevocationState` - The updated revocation state
+    #[allow(dead_code)]
     pub fn update_revocation_state_for_credential(
         revocation_state: RevocationState,
         rev_reg_def: RevocationRegistryDefinition,

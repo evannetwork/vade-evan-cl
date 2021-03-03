@@ -44,12 +44,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, error::Error};
 use ursa::{
     bn::BigNumber,
-    cl::{
-        constants::LARGE_PRIME,
-        helpers::generate_safe_prime,
-        prover::Prover as UrsaProver,
-        Witness,
-    },
+    cl::{constants::LARGE_PRIME, helpers::generate_safe_prime, Witness},
 };
 use vade::{Vade, VadePlugin, VadePluginResultValue};
 use vade_evan_substrate::signing::Signer;
@@ -336,12 +331,9 @@ impl VadePlugin for VadeEvanCl {
             "generate_safe_prime" => Ok(VadePluginResultValue::Success(Some(
                 VadeEvanCl::generate_safe_prime()?,
             ))),
-            "create_master_secret" => {
-                Ok(VadePluginResultValue::Success(Some(serde_json::to_string(
-                    &UrsaProver::new_master_secret()
-                        .map_err(|_| "could not create master secret")?,
-                )?)))
-            }
+            "create_master_secret" => Ok(VadePluginResultValue::Success(Some(
+                serde_json::to_string(&Prover::create_master_secret()?)?,
+            ))),
             _ => Ok(VadePluginResultValue::Ignored),
         }
     }

@@ -32,7 +32,6 @@ pub mod verifier {
         RevocationKeyPublic,
         RevocationRegistry,
         SubProof,
-        SubProofRequest,
     };
 
     // Mediator class to broker between the high-level vade-evan application verifier and the Ursa verifier class
@@ -41,21 +40,6 @@ pub mod verifier {
     impl CredVerifier {
         pub fn new() -> CredVerifier {
             CredVerifier {}
-        }
-
-        pub fn request_proof(attributes: Vec<&str>) -> Result<SubProofRequest, Box<dyn Error>> {
-            let mut sub_proof_request_builder = CryptoVerifier::new_sub_proof_request_builder()
-                .map_err(|e| format!("could not create sub proof request builder; {}", &e))?;
-            for attribute in &attributes {
-                sub_proof_request_builder
-                    .add_revealed_attr(&attribute)
-                    .map_err(|e| format!("could not add revealed attribute; {}", &e))?;
-            }
-            let sub_proof_request = sub_proof_request_builder
-                .finalize()
-                .map_err(|e| format!("could not finalize sub proof request; {}", &e))?;
-
-            Ok(sub_proof_request)
         }
 
         pub fn verify_proof(

@@ -108,10 +108,13 @@ pub async fn create_assertion_proof(
 ///
 /// Currently the test `vc_id` `"test"` is accepted as valid.
 ///
+/// Not used for the moment but we might need it later.
+///
 /// # Arguments
 ///
 /// * `vc_id` - vc_id to check document for
 /// * `value` - value to check
+#[allow(dead_code)]
 pub fn check_assertion_proof(
     vc_document: &str,
     signer_address: &str,
@@ -172,12 +175,14 @@ pub fn check_assertion_proof(
 }
 
 /// Recovers Ethereum address of signer and data part of a jwt.
+/// Not used for the moment but we might need it later.
 ///
 /// # Arguments
 /// * `jwt` - jwt as str&
 ///
 /// # Returns
 /// * `(String, String)` - (Address, Data) tuple
+#[allow(dead_code)]
 pub fn recover_address_and_data(jwt: &str) -> Result<(String, String), Box<dyn Error>> {
     // jwt text parsing
     let split: Vec<&str> = jwt.split('.').collect();

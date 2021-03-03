@@ -115,16 +115,12 @@
 //! [`run_custom_function`]: https://docs.rs/vade_evan_cli/*/vade_evan_cli/struct.VadeEvanCl.html#method.run_custom_function
 
 #[macro_use]
-pub extern crate log;
-pub extern crate vade_evan_substrate;
-
-// --------- mod
-// shared
-pub mod utils;
+extern crate log;
+extern crate vade_evan_substrate;
 
 pub mod application;
-pub mod crypto;
+pub(crate) mod crypto;
+pub(crate) mod utils;
 mod vade_evan_cl;
 
-// --------- use
 pub use self::vade_evan_cl::*;

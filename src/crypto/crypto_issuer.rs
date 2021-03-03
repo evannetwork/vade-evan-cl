@@ -29,7 +29,6 @@ use ursa::{
         CredentialSignature,
         Nonce,
         RevocationKeyPrivate,
-        RevocationRegistry,
         RevocationRegistryDelta,
         SignatureCorrectnessProof,
         SimpleTailsAccessor,
@@ -102,6 +101,8 @@ impl Issuer {
         Ok((credential_private_key, definition))
     }
 
+    // Not used at the moment but might be needed for revocation workflow.
+    #[allow(dead_code)]
     pub fn sign_credential(
         credential_request: &CredentialRequest,
         credential_private_key: &CredentialPrivateKey,
@@ -241,13 +242,6 @@ impl Issuer {
             Ok(delta) => Ok(delta),
             Err(_) => return Err(Box::from("Unable to revoke credential")),
         }
-    }
-
-    pub fn update_revocation_registry(
-        revocation_registry_delta: RevocationRegistryDelta,
-    ) -> RevocationRegistry {
-        let new_registry = RevocationRegistry::from(revocation_registry_delta);
-        return new_registry;
     }
 }
 
