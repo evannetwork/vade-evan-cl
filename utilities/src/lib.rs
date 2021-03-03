@@ -15,7 +15,3 @@
 */
 
 pub mod test_data;
-
-pub fn hello() {
-    println!("");
-}
