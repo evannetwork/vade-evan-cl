@@ -311,12 +311,13 @@ impl VadeEvanCl {
 impl VadePlugin for VadeEvanCl {
     /// Runs a custom function, currently supports
     ///
+    /// - `create_master_secret` to create new master secrets
     /// - `generate_safe_prime` to generate safe prime numbers for [`vc_zkp_create_credential_definition`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.VadeEvanCl.html#method.vc_zkp_create_credential_definition)
     ///
     /// # Arguments
     ///
     /// * `method` - method to call a function for (e.g. "did:example")
-    /// * `function` - currently only supports `generate_safe_prime`
+    /// * `function` - currently supports `generate_safe_prime` and `create_master_secret`
     /// * `options` - serialized [`TypeOptions`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.TypeOptions.html)
     /// * `_payload` - currently not used, so can be left empty
     async fn run_custom_function(
@@ -328,11 +329,11 @@ impl VadePlugin for VadeEvanCl {
     ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
         ignore_unrelated!(method, options);
         match function {
-            "generate_safe_prime" => Ok(VadePluginResultValue::Success(Some(
-                VadeEvanCl::generate_safe_prime()?,
-            ))),
             "create_master_secret" => Ok(VadePluginResultValue::Success(Some(
                 serde_json::to_string(&Prover::create_master_secret()?)?,
+            ))),
+            "generate_safe_prime" => Ok(VadePluginResultValue::Success(Some(
+                VadeEvanCl::generate_safe_prime()?,
             ))),
             _ => Ok(VadePluginResultValue::Ignored),
         }
