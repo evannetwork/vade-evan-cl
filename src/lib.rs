@@ -94,7 +94,7 @@
 //! | feature  | default | contents |
 //! | -------- |:-------:| -------- |
 //! | portable |     x   | build with optimizations to run natively, not compatible with `wasm` feature |
-//! | wasm     |         | build with optimizations to run as web assembly, not compatible with `native` |
+//! | wasm     |         | build with optimizations to run as web assembly, not compatible with `portable` |
 //!
 //! [`VadeEvanCl`]: https://docs.rs/vade_evan_cli/*/vade_evan_cli/resolver/struct.VadeEvanCl.html
 //! [`Vade`]: https://docs.rs/vade_evan_cli/*/vade/struct.Vade.html
