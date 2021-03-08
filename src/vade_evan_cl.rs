@@ -148,8 +148,17 @@ pub struct IssueCredentialPayload {
     pub credential_private_key: CredentialPrivateKey,
     pub revocation_private_key: RevocationKeyPrivate,
     pub revocation_information: RevocationIdInformation,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FinishCredentialPayload {
+    pub credential: Credential,
+    pub credential_request: CredentialRequest,
+    pub credential_revocation_definition: String,
     pub blinding_factors: CredentialSecretsBlindingFactors,
     pub master_secret: MasterSecret,
+    pub revocation_state: RevocationState,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -547,12 +556,7 @@ impl VadePlugin for VadeEvanCl {
             "revocation definition"
         );
 
-        let schema_copy: CredentialSchema = serde_json::from_str(&serde_json::to_string(&schema)?)?;
-        let request_copy: CredentialRequest =
-            serde_json::from_str(&serde_json::to_string(&payload.credential_request)?)?;
-        let definition_copy: CredentialDefinition =
-            serde_json::from_str(&serde_json::to_string(&definition)?)?;
-        let (mut credential, revocation_state, revocation_info) = Issuer::issue_credential(
+        let (credential, revocation_state, revocation_info) = Issuer::issue_credential(
             &payload.issuer,
             &payload.subject,
             payload.credential_request,
@@ -564,23 +568,69 @@ impl VadePlugin for VadeEvanCl {
             &payload.revocation_information,
         )?;
 
-        Prover::post_process_credential_signature(
-            &mut credential,
-            &schema_copy,
-            &request_copy,
-            &definition_copy,
-            payload.blinding_factors,
-            &payload.master_secret,
-            &revocation_definition,
-            &revocation_state.witness,
-        )?;
-
         Ok(VadePluginResultValue::Success(Some(serde_json::to_string(
             &IssueCredentialResult {
                 credential,
                 revocation_state,
                 revocation_info,
             },
+        )?)))
+    }
+
+    /// Finishes a credential, e.g. by incorporating the prover's master secret into the credential signature after issuance.
+    ///
+    /// # Arguments
+    ///
+    /// * `method` - method to update a finish credential for (e.g. "did:example")
+    /// * `options` - JSON string with additional information supporting the request (e.g. authentication data)
+    /// * `payload` - JSON string with information for the request (e.g. actual data to write)
+    ///
+    /// # Returns
+    /// * serialized [`Credential`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/application/datatypes/struct.Credential.html) consisting of the credential, this credential's initial revocation state and
+    /// the updated revocation info, only interesting for the issuer (needs to be stored privately)
+    async fn vc_zkp_finish_credential(
+        &mut self,
+        method: &str,
+        options: &str,
+        payload: &str,
+    ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn std::error::Error>> {
+        ignore_unrelated!(method, options);
+
+        // let options: AuthenticationOptions = parse!(&options, "options");
+        let payload: FinishCredentialPayload = parse!(&payload, "payload");
+        let FinishCredentialPayload {
+            mut credential,
+            credential_request,
+            credential_revocation_definition,
+            blinding_factors,
+            master_secret,
+            revocation_state,
+        } = payload;
+
+        let definition: CredentialDefinition = get_document!(
+            &mut self.vade,
+            &credential_request.credential_definition,
+            "credential definition"
+        );
+        let schema: CredentialSchema = get_document!(&mut self.vade, &definition.schema, "schema");
+        let revocation_definition: RevocationRegistryDefinition = get_document!(
+            &mut self.vade,
+            &credential_revocation_definition,
+            "revocation definition"
+        );
+
+        Prover::post_process_credential_signature(
+            &mut credential,
+            &schema,
+            &credential_request,
+            &definition,
+            blinding_factors,
+            &master_secret,
+            &revocation_definition,
+            &revocation_state.witness,
+        )?;
+        Ok(VadePluginResultValue::Success(Some(serde_json::to_string(
+            &credential,
         )?)))
     }
 

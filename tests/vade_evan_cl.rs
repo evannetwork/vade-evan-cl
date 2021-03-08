@@ -201,7 +201,7 @@ async fn can_issue_credentials() -> Result<(), Box<dyn Error>> {
     let offer: CredentialOffer = create_credential_offer(&mut vade, &proposal, &definition).await?;
 
     let master_secret = create_master_secret(&mut vade).await?;
-    let (request, blinding_factors) =
+    let (request, _blinding_factors) =
         create_credential_request(&mut vade, &schema, &offer, &master_secret).await?;
 
     let rev_reg_def: CreateRevocationRegistryDefinitionResult =
@@ -216,13 +216,71 @@ async fn can_issue_credentials() -> Result<(), Box<dyn Error>> {
         &rev_reg_def.private_key,
         &rev_reg_def.revocation_info,
         &rev_reg_def.revocation_registry_definition,
-        &blinding_factors,
-        &master_secret,
     )
     .await?;
 
     // check results
     assert_eq!(result.issuer, ISSUER_DID);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn can_finish_credentials() -> Result<(), Box<dyn Error>> {
+    let mut vade = get_vade();
+
+    let schema: CredentialSchema = create_credential_schema(&mut vade).await?;
+    let (definition, credential_private_key) =
+        create_credential_definition(&mut vade, &schema).await?;
+    let proposal: CredentialProposal = create_credential_proposal(&mut vade, &schema).await?;
+    let offer: CredentialOffer = create_credential_offer(&mut vade, &proposal, &definition).await?;
+    let master_secret = create_master_secret(&mut vade).await?;
+    let (request, blinding_factors) =
+        create_credential_request(&mut vade, &schema, &offer, &master_secret).await?;
+
+    let rev_reg_def: CreateRevocationRegistryDefinitionResult =
+        create_revocation_registry_definition(&mut vade, &definition, 42).await?;
+
+    let (credential, revocation_state, _): (Credential, RevocationState, _) = issue_credential(
+        &mut vade,
+        &definition,
+        &credential_private_key,
+        &request,
+        &rev_reg_def.private_key,
+        &rev_reg_def.revocation_info,
+        &rev_reg_def.revocation_registry_definition,
+    )
+    .await?;
+
+    // run test
+    let finished_credential: Credential = finish_credential(
+        &mut vade,
+        &credential,
+        &request,
+        &rev_reg_def.revocation_registry_definition.id,
+        &blinding_factors,
+        &master_secret,
+        &revocation_state,
+    )
+    .await?;
+
+    // only proof should have been updated
+    assert_eq!(&finished_credential.context, &credential.context);
+    assert_eq!(&finished_credential.id, &credential.id);
+    assert_eq!(&finished_credential.r#type, &credential.r#type);
+    assert_eq!(&finished_credential.issuer, &credential.issuer);
+    assert_eq!(
+        serde_json::to_string(&finished_credential.credential_subject)?,
+        serde_json::to_string(&credential.credential_subject)?,
+    );
+    assert_eq!(
+        serde_json::to_string(&finished_credential.credential_schema)?,
+        serde_json::to_string(&credential.credential_schema)?,
+    );
+    assert_ne!(
+        serde_json::to_string(&finished_credential.proof)?,
+        serde_json::to_string(&credential.proof)?,
+    );
 
     Ok(())
 }
@@ -275,8 +333,17 @@ async fn can_present_proofs() -> Result<(), Box<dyn Error>> {
         &rev_reg_def.private_key,
         &rev_reg_def.revocation_info,
         &rev_reg_def.revocation_registry_definition,
+    )
+    .await?;
+
+    let credential: Credential = finish_credential(
+        &mut vade,
+        &credential,
+        &request,
+        &rev_reg_def.revocation_registry_definition.id,
         &blinding_factors,
         &master_secret,
+        &revocation_state,
     )
     .await?;
 
@@ -323,8 +390,17 @@ async fn can_present_proofs_with_less_properties() -> Result<(), Box<dyn Error>>
         &rev_reg_def.private_key,
         &rev_reg_def.revocation_info,
         &rev_reg_def.revocation_registry_definition,
+    )
+    .await?;
+
+    let credential: Credential = finish_credential(
+        &mut vade,
+        &credential,
+        &request,
+        &rev_reg_def.revocation_registry_definition.id,
         &blinding_factors,
         &master_secret,
+        &revocation_state,
     )
     .await?;
 
@@ -372,8 +448,17 @@ async fn can_present_proofs_with_selective_revealed_attributes_and_omitted_optio
         &rev_reg_def.private_key,
         &rev_reg_def.revocation_info,
         &rev_reg_def.revocation_registry_definition,
+    )
+    .await?;
+
+    let credential: Credential = finish_credential(
+        &mut vade,
+        &credential,
+        &request,
+        &rev_reg_def.revocation_registry_definition.id,
         &blinding_factors,
         &master_secret,
+        &revocation_state,
     )
     .await?;
 
@@ -457,8 +542,17 @@ async fn can_verify_proof() -> Result<(), Box<dyn Error>> {
         &rev_reg_def.private_key,
         &rev_reg_def.revocation_info,
         &rev_reg_def.revocation_registry_definition,
+    )
+    .await?;
+
+    let credential: Credential = finish_credential(
+        &mut vade,
+        &credential,
+        &request,
+        &rev_reg_def.revocation_registry_definition.id,
         &blinding_factors,
         &master_secret,
+        &revocation_state,
     )
     .await?;
 
@@ -513,8 +607,17 @@ async fn can_revoke_credential() -> Result<(), Box<dyn Error>> {
         &revocation_key_private,
         &revocation_info,
         &revocation_registry_definition,
+    )
+    .await?;
+
+    let credential: Credential = finish_credential(
+        &mut vade,
+        &credential,
+        &request,
+        &revocation_registry_definition.id,
         &blinding_factors,
         &master_secret,
+        &revocation_state,
     )
     .await?;
 
@@ -579,8 +682,17 @@ async fn can_verify_proof_after_revocation_update() -> Result<(), Box<dyn Error>
         &revocation_key_private,
         &revocation_info,
         &revocation_registry_definition,
+    )
+    .await?;
+
+    let credential: Credential = finish_credential(
+        &mut vade,
+        &credential,
+        &request,
+        &revocation_registry_definition.id,
         &blinding_factors,
         &master_secret,
+        &revocation_state,
     )
     .await?;
 
@@ -591,7 +703,7 @@ async fn can_verify_proof_after_revocation_update() -> Result<(), Box<dyn Error>
     let (other_request, other_blinding_factors) =
         create_credential_request(&mut vade, &schema, &other_offer, &master_secret).await?;
 
-    let (other_credential, _other_revocation_state, _): (
+    let (other_credential, other_revocation_state, _): (
         Credential,
         RevocationState,
         RevocationIdInformation,
@@ -603,8 +715,17 @@ async fn can_verify_proof_after_revocation_update() -> Result<(), Box<dyn Error>
         &revocation_key_private,
         &revocation_info,
         &revocation_registry_definition,
+    )
+    .await?;
+
+    let other_credential: Credential = finish_credential(
+        &mut vade,
+        &other_credential,
+        &other_request,
+        &revocation_registry_definition.id,
         &other_blinding_factors,
         &master_secret,
+        &other_revocation_state,
     )
     .await?;
 
@@ -663,7 +784,7 @@ async fn can_verify_proof_after_multiple_revocation_updates() -> Result<(), Box<
     let revocation_key_private = rev_result.private_key;
     let revocation_info = rev_result.revocation_info;
 
-    let (credential, _revocation_state, revocation_info): (
+    let (credential, revocation_state, revocation_info): (
         Credential,
         RevocationState,
         RevocationIdInformation,
@@ -675,8 +796,17 @@ async fn can_verify_proof_after_multiple_revocation_updates() -> Result<(), Box<
         &revocation_key_private,
         &revocation_info,
         &revocation_registry_definition,
+    )
+    .await?;
+
+    let credential: Credential = finish_credential(
+        &mut vade,
+        &credential,
+        &request,
+        &revocation_registry_definition.id,
         &blinding_factors,
         &master_secret,
+        &revocation_state,
     )
     .await?;
 
@@ -687,7 +817,7 @@ async fn can_verify_proof_after_multiple_revocation_updates() -> Result<(), Box<
     let other_proposal: CredentialProposal = create_credential_proposal(&mut vade, &schema).await?;
     let other_offer: CredentialOffer =
         create_credential_offer(&mut vade, &other_proposal, &definition).await?;
-    let (other_request, other_blinding_factors) =
+    let (other_request, _other_blinding_factors) =
         create_credential_request(&mut vade, &schema, &other_offer, &master_secret).await?;
 
     let (other_credential, other_revocation_state, revocation_info): (
@@ -702,8 +832,17 @@ async fn can_verify_proof_after_multiple_revocation_updates() -> Result<(), Box<
         &revocation_key_private,
         &revocation_info,
         &updated_registry,
-        &other_blinding_factors,
+    )
+    .await?;
+
+    let other_credential: Credential = finish_credential(
+        &mut vade,
+        &other_credential,
+        &request,
+        &updated_registry.id,
+        &blinding_factors,
         &master_secret,
+        &other_revocation_state,
     )
     .await?;
 
@@ -711,10 +850,10 @@ async fn can_verify_proof_after_multiple_revocation_updates() -> Result<(), Box<
     let third_proposal: CredentialProposal = create_credential_proposal(&mut vade, &schema).await?;
     let third_offer: CredentialOffer =
         create_credential_offer(&mut vade, &third_proposal, &definition).await?;
-    let (third_request, third_blinding_factors) =
+    let (third_request, _third_blinding_factors) =
         create_credential_request(&mut vade, &schema, &third_offer, &master_secret).await?;
 
-    let (third_credential, _third_revocation_state, _): (
+    let (third_credential, third_revocation_state, _): (
         Credential,
         RevocationState,
         RevocationIdInformation,
@@ -726,8 +865,17 @@ async fn can_verify_proof_after_multiple_revocation_updates() -> Result<(), Box<
         &revocation_key_private,
         &revocation_info,
         &updated_registry,
-        &third_blinding_factors,
+    )
+    .await?;
+
+    let third_credential: Credential = finish_credential(
+        &mut vade,
+        &third_credential,
+        &request,
+        &updated_registry.id,
+        &blinding_factors,
         &master_secret,
+        &third_revocation_state,
     )
     .await?;
 
@@ -1044,8 +1192,6 @@ async fn issue_credential(
     revocation_key_private: &RevocationKeyPrivate,
     revocation_info: &RevocationIdInformation,
     revocation_definition: &RevocationRegistryDefinition,
-    blinding_factors: &CredentialSecretsBlindingFactors,
-    master_secret: &MasterSecret,
 ) -> Result<(Credential, RevocationState, RevocationIdInformation), Box<dyn Error>> {
     let payload = format!(
         r###"{{
@@ -1056,9 +1202,7 @@ async fn issue_credential(
             "credentialPrivateKey": {},
             "credentialRevocationDefinition": "{}",
             "revocationPrivateKey": {},
-            "revocationInformation": {},
-            "blindingFactors": {},
-            "masterSecret": {}
+            "revocationInformation": {}
         }}"###,
         ISSUER_DID,
         SUBJECT_DID,
@@ -1068,8 +1212,6 @@ async fn issue_credential(
         &revocation_definition.id,
         serde_json::to_string(&revocation_key_private).unwrap(),
         serde_json::to_string(&revocation_info).unwrap(),
-        serde_json::to_string(&blinding_factors).unwrap(),
-        serde_json::to_string(&master_secret).unwrap(),
     );
     let results = vade
         .vc_zkp_issue_credential(EVAN_METHOD, TYPE_OPTIONS, &payload)
@@ -1084,6 +1226,42 @@ async fn issue_credential(
         result.revocation_state,
         result.revocation_info,
     ))
+}
+
+async fn finish_credential(
+    vade: &mut Vade,
+    credential: &Credential,
+    credential_request: &CredentialRequest,
+    credential_revocation_definition: &String,
+    blinding_factors: &CredentialSecretsBlindingFactors,
+    master_secret: &MasterSecret,
+    revocation_state: &RevocationState,
+) -> Result<Credential, Box<dyn Error>> {
+    let payload = format!(
+        r###"{{
+            "credential": {},
+            "credentialRequest": {},
+            "credentialRevocationDefinition": "{}",
+            "blindingFactors": {},
+            "masterSecret": {},
+            "revocationState": {}
+        }}"###,
+        serde_json::to_string(credential)?,
+        serde_json::to_string(credential_request)?,
+        credential_revocation_definition,
+        serde_json::to_string(blinding_factors)?,
+        serde_json::to_string(master_secret)?,
+        serde_json::to_string(revocation_state)?,
+    );
+    let results = vade
+        .vc_zkp_finish_credential(EVAN_METHOD, TYPE_OPTIONS, &payload)
+        .await?;
+
+    // check results
+    assert_eq!(results.len(), 1);
+    let result: Credential = serde_json::from_str(results[0].as_ref().unwrap()).unwrap();
+
+    Ok(result)
 }
 
 async fn request_proof(
