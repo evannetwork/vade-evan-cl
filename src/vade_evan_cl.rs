@@ -142,6 +142,7 @@ pub struct CreateRevocationRegistryDefinitionResult {
 #[serde(rename_all = "camelCase")]
 pub struct IssueCredentialPayload {
     pub issuer: String,
+    pub issuance_date: Option<String>,
     pub subject: String,
     pub credential_request: CredentialRequest,
     pub credential_revocation_definition: String,
@@ -562,6 +563,7 @@ impl VadePlugin for VadeEvanCl {
             &mut revocation_definition,
             payload.revocation_private_key,
             &payload.revocation_information,
+            payload.issuance_date,
         )?;
 
         Prover::post_process_credential_signature(
