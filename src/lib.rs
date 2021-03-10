@@ -55,39 +55,9 @@
 //!
 //! In short: Use either `did` and `vc-zkp` together (default) or just `did`.
 //!
-//! ### Command Line Interface
-//!
-//! To enable the cli just add the feature `cli` to the feature set:
-//!
-//! ```sh
-//! cargo build --release --features cli
-//! ```
-//!
-//! You can now use the `vade-evan-cl` cli. Get started by having a look at the help shown after calling it with:
-//!
-//! ```sh
-//! ./target/release/vade_evan_cli_cli
-//! ```
-//!
 //! ### WASM
 //!
-//! To compile `vade-evan-cl` for wasm, use wasm pack.
-//!
-//! You can specify to use only `did` feature or to use `did` and `vc-zkp`. The following examples will use both features.
-//!
-//! Also you have to specify whether to build a browser or a nodejs environment.
-//!
-//! nodejs:
-//!
-//! ```sh
-//! wasm-pack build --release --target nodejs -- --no-default-features --features did,vc-zkp,wasm
-//! ```
-//!
-//! browser:
-//!
-//! ```sh
-//! wasm-pack build --release --target web -- --no-default-features --features did,vc-zkp,wasm
-//! ```
+//! When compiling `vade-evan-cl` to wasm, you have to use the `wasm` feature instead of the `native` feature.
 //!
 //! ### Features for building
 //!
