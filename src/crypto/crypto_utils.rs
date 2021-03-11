@@ -292,7 +292,6 @@ mod tests {
         assert_eq!(format!("0x{}", address), SIGNER_1_ADDRESS);
 
         // if we find these strings, we can assume the recovery is fine
-        println!("data: {}", &data);
         assert_eq!(true, data.contains(&format!(r#""id":"{}""#, &SIGNER_1_DID)));
         assert_eq!(
             true,
