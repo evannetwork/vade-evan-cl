@@ -175,6 +175,7 @@ pub fn check_assertion_proof(
 }
 
 /// Recovers Ethereum address of signer and data part of a jwt.
+///
 /// Not used for the moment but we might need it later.
 ///
 /// # Arguments
