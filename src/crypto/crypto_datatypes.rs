@@ -22,12 +22,10 @@ use ursa::{
         BlindedCredentialSecretsCorrectnessProof,
         CredentialKeyCorrectnessProof,
         CredentialPublicKey,
-        CredentialSchema as CryptoCredentialSchema,
         RevocationKeyPublic,
         RevocationRegistry,
         RevocationRegistryDelta,
         RevocationTailsGenerator,
-        SubProofRequest,
     },
 };
 
@@ -52,11 +50,6 @@ pub struct SchemaProperty {
     pub r#type: String,
     pub format: Option<String>,
     pub items: Option<Vec<String>>,
-}
-
-pub struct CryptoProofRequest {
-    pub credential_schema: CryptoCredentialSchema,
-    pub crypto_proof_request: SubProofRequest,
 }
 
 #[derive(Serialize, Deserialize)]
