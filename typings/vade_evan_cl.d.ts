@@ -16,6 +16,7 @@
 
 import {
   Credential,
+  CredentialDefinition,
   CredentialOffer,
   CredentialRequest,
   ProofPresentation,
@@ -27,6 +28,7 @@ import {
   SubProofRequest,
 } from './application/datatypes';
 import {
+  BigNumber,
   CredentialPrivateKey,
   CredentialSecretsBlindingFactors,
   MasterSecret,

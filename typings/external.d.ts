@@ -14,20 +14,24 @@
   limitations under the License.
 */
 
-export interface BigNumber extends unknown {}
-export interface BlindedCredentialSecrets extends unknown {}
-export interface BlindedCredentialSecretsCorrectnessProof extends unknown {}
-export interface CredentialKeyCorrectnessProof extends unknown {}
-export interface CredentialPrivateKey extends unknown {}
-export interface CredentialPublicKey extends unknown {}
-export interface CredentialSecretsBlindingFactors extends unknown {}
-export interface CryptoCredentialSignature extends unknown {}
-export interface MasterSecret extends unknown {}
-export interface Nonce extends unknown {}
-export interface RevocationKeyPrivate extends unknown {}
-export interface RevocationKeyPublic extends unknown {}
-export interface RevocationRegistry extends unknown {}
-export interface RevocationRegistryDelta extends unknown {}
-export interface RevocationTailsGenerator extends unknown {}
-export interface SignatureCorrectnessProof extends unknown {}
-export interface Witness extends unknown {}
+// use empty placeholder for external types
+// there should usually be no need to work with them directly, as they can be passed
+// to vade api and returned without interaction with their inner data
+
+export interface BigNumber {}
+export interface BlindedCredentialSecrets {}
+export interface BlindedCredentialSecretsCorrectnessProof {}
+export interface CredentialKeyCorrectnessProof {}
+export interface CredentialPrivateKey {}
+export interface CredentialPublicKey {}
+export interface CredentialSecretsBlindingFactors {}
+export interface CryptoCredentialSignature {}
+export interface MasterSecret {}
+export interface Nonce {}
+export interface RevocationKeyPrivate {}
+export interface RevocationKeyPublic {}
+export interface RevocationRegistry {}
+export interface RevocationRegistryDelta {}
+export interface RevocationTailsGenerator {}
+export interface SignatureCorrectnessProof {}
+export interface Witness {}
