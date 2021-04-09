@@ -15,13 +15,6 @@
 */
 
 import {
-  CredentialPrivateKey,
-  CredentialSecretsBlindingFactors,
-  MasterSecret,
-  RevocationKeyPrivate,
-  Witness,
-} from './external';
-import {
   Credential,
   CredentialOffer,
   CredentialRequest,
@@ -33,6 +26,13 @@ import {
   SchemaProperty,
   SubProofRequest,
 } from './application/datatypes';
+import {
+  CredentialPrivateKey,
+  CredentialSecretsBlindingFactors,
+  MasterSecret,
+  RevocationKeyPrivate,
+  Witness,
+} from './external';
 
 export interface TypeOptions {
   type?: string,
@@ -48,9 +48,11 @@ export interface CreateCredentialDefinitionPayload {
   schemaDid: string,
   issuerPublicKeyDid: string,
   issuerProvingKey: string,
-  pSafe?: object,
-  qSafe?: object,
+  pSafe?: BigNumber
+  qSafe?: BigNumber,
 }
+
+export type CreateCredentialDefinitionResult = [CredentialDefinition, CredentialPrivateKey];
 
 export interface CreateCredentialSchemaPayload {
   issuer: string,

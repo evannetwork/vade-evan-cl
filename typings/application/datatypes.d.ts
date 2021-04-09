@@ -14,17 +14,14 @@
   limitations under the License.
 */
 
+import { AssertionProof } from '../crypto/crypto_datatypes';
 import {
   BlindedCredentialSecrets,
   BlindedCredentialSecretsCorrectnessProof,
   CredentialKeyCorrectnessProof,
-  CredentialPrivateKey,
   CredentialPublicKey,
-  CredentialSecretsBlindingFactors,
   CryptoCredentialSignature,
-  MasterSecret,
   Nonce,
-  RevocationKeyPrivate,
   RevocationKeyPublic,
   RevocationRegistry,
   RevocationRegistryDelta,
@@ -32,7 +29,6 @@ import {
   SignatureCorrectnessProof,
   Witness,
 } from '../external';
-import { AssertionProof }  from '../crypto/crypto_datatypes';
 
 /**
  * Holds metadata and the key material used to issue and process credentials,
@@ -104,7 +100,7 @@ export interface CredentialRequest {
 }
 
 export interface CredentialSignature {
-  ype: string,
+  type: string,
   credentialDefinition: string,
   signature: CryptoCredentialSignature,
   signatureCorrectnessProof: SignatureCorrectnessProof,
@@ -135,7 +131,7 @@ export interface Credential {
   issuer: string,
   issuanceDate: string,
   credentialSubject: CredentialSubject,
-  credentialSchem: CredentialSchemaReference,
+  credentialSchema: CredentialSchemaReference,
   proof: CredentialSignature,
 }
 
@@ -246,7 +242,6 @@ export interface ProofVerification {
   status: string,
   reason?: string,
 }
-
 
 export interface EncodedCredentialValue {
   raw: string,
