@@ -14,20 +14,20 @@
   limitations under the License.
 */
 
-export type BigNumber = unknown;
-export type BlindedCredentialSecrets = unknown;
-export type BlindedCredentialSecretsCorrectnessProof = unknown;
-export type CredentialKeyCorrectnessProof = unknown;
-export type CredentialPrivateKey = unknown;
-export type CredentialPublicKey = unknown;
-export type CredentialSecretsBlindingFactors = unknown;
-export type CryptoCredentialSignature = unknown;
-export type MasterSecret = unknown;
-export type Nonce = unknown;
-export type RevocationKeyPrivate = unknown;
-export type RevocationKeyPublic = unknown;
-export type RevocationRegistry = unknown;
-export type RevocationRegistryDelta = unknown;
-export type RevocationTailsGenerator = unknown;
-export type SignatureCorrectnessProof = unknown;
-export type Witness = unknown;
+export interface BigNumber extends unknown {}
+export interface BlindedCredentialSecrets extends unknown {}
+export interface BlindedCredentialSecretsCorrectnessProof extends unknown {}
+export interface CredentialKeyCorrectnessProof extends unknown {}
+export interface CredentialPrivateKey extends unknown {}
+export interface CredentialPublicKey extends unknown {}
+export interface CredentialSecretsBlindingFactors extends unknown {}
+export interface CryptoCredentialSignature extends unknown {}
+export interface MasterSecret extends unknown {}
+export interface Nonce extends unknown {}
+export interface RevocationKeyPrivate extends unknown {}
+export interface RevocationKeyPublic extends unknown {}
+export interface RevocationRegistry extends unknown {}
+export interface RevocationRegistryDelta extends unknown {}
+export interface RevocationTailsGenerator extends unknown {}
+export interface SignatureCorrectnessProof extends unknown {}
+export interface Witness extends unknown {}
