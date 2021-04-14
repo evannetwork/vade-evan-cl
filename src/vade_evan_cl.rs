@@ -365,7 +365,7 @@ impl VadePlugin for VadeEvanCl {
     /// # Arguments
     ///
     /// * `method` - method to create a credential definition for (e.g. "did:example")
-    /// * `options` - serialized [`AuthenticationOptions`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.AuthenticationOptions.html)
+    /// * `options` - serialized [`TypeOptions`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.AuthenticationOptions.html)
     /// * `payload` - serialized [`CreateCredentialDefinitionPayload`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.CreateCredentialDefinitionPayload.html)
     ///
     /// # Returns
@@ -678,7 +678,7 @@ impl VadePlugin for VadeEvanCl {
     /// * `payload` - serialized [`PresentProofPayload`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.PresentProofPayload.html)
     ///
     /// # Returns
-    /// * `Option<String>` - The offer as a JSON object
+    /// * `Option<String>` - The presentation as a JSON object
     async fn vc_zkp_present_proof(
         &mut self,
         method: &str,
