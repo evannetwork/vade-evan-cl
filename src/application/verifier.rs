@@ -23,6 +23,7 @@ use crate::{
         ProofVerification,
         RevocationRegistryDefinition,
         SubProofRequest,
+        CL_TYPE,
     },
     crypto::crypto_verifier::verifier::CredVerifier,
     utils::utils::get_now_as_iso_string,
@@ -56,6 +57,7 @@ impl Verifier {
             verifier: verifier_did.to_owned(),
             prover: prover_did.to_owned(),
             created_at: get_now_as_iso_string(),
+            r#type: CL_TYPE.to_string(),
             nonce: new_nonce().map_err(|e| format!("could not get new nonce; {}", &e))?,
             sub_proof_requests,
         })
