@@ -107,8 +107,6 @@ pub struct AuthenticationOptions {
 /// - `schema_did`: DID of the schema to issue the definition for
 /// - `issuer_public_key_did`: DID of the issuer's public key
 /// - `issuer_proving_key`: Key to sign the credential definition
-/// - `p_safe`: Optional prime number to use. If given, this prime number will be used instead of a newly generated one (saves time).
-/// - `q_safe`: Optional prime number to use. If given, this prime number will be used instead of a newly generated one (saves time).
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateCredentialDefinitionPayload {
@@ -116,8 +114,6 @@ pub struct CreateCredentialDefinitionPayload {
     pub schema_did: String,
     pub issuer_public_key_did: String,
     pub issuer_proving_key: String,
-    pub p_safe: Option<BigNumber>, // Ignored in released version
-    pub q_safe: Option<BigNumber>,
 }
 
 /// API payload needed to create a credential schema needed for issuing credentials
@@ -474,8 +470,6 @@ impl VadePlugin for VadeEvanCl {
             &payload.issuer_public_key_did,
             &payload.issuer_proving_key,
             &self.signer,
-            None, //payload.p_safe.as_ref(),
-            None, // payload.q_safe.as_ref(),
         )
         .await?;
 
