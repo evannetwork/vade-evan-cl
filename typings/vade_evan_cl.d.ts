@@ -67,8 +67,6 @@ export interface CreateCredentialDefinitionPayload {
 
 export type CreateCredentialDefinitionResult = [CredentialDefinition, CredentialPrivateKey];
 
-
-
 /** API payload needed to create a credential schema needed for issuing credentials */
 export interface CreateCredentialSchemaPayload {
   /** DID of the schema issuer/owner */
