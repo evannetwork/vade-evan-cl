@@ -114,7 +114,7 @@ export interface CreateRevocationRegistryDefinitionResult {
 export interface IssueCredentialPayload {
   /** DID of the credential issuer */
   issuer: string,
-  /** Date of issuance, optional */
+  /** Date of issuance */
   issuanceDate?: string,
   /** DID of the credential subject */
   subject: string,
