@@ -83,6 +83,7 @@ macro_rules! ignore_unrelated {
 
 /// Message passed to vade containing the desired credential type.
 /// Does not perform action if type does not indicate credential type CL.
+/// This can be done by passing "cl" as the value for "type".
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TypeOptions {
