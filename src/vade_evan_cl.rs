@@ -167,7 +167,7 @@ pub struct CreateRevocationRegistryDefinitionResult {
 pub struct IssueCredentialPayload {
     /// DID of the credential issuer
     pub issuer: String,
-    /// Date of issuance, optional
+    /// Date of issuance
     pub issuance_date: Option<String>,
     /// DID of the credential subject
     pub subject: String,
