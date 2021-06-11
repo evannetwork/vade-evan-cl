@@ -42,10 +42,7 @@ use crate::application::{
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, error::Error};
-use ursa::{
-    bn::BigNumber,
-    cl::{constants::LARGE_PRIME, helpers::generate_safe_prime, Witness},
-};
+use ursa::cl::{constants::LARGE_PRIME, helpers::generate_safe_prime, Witness};
 use vade::{Vade, VadePlugin, VadePluginResultValue};
 use vade_evan_substrate::signing::Signer;
 
@@ -84,149 +81,228 @@ macro_rules! ignore_unrelated {
     }};
 }
 
+/// Message passed to vade containing the desired credential type.
+/// Does not perform action if type does not indicate credential type CL.
+/// This can be done by passing "cl" as the value for "type".
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TypeOptions {
     pub r#type: Option<String>,
 }
 
+/// Contains information necessary to make on-chain transactions (e.g. updating a DID Document).
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthenticationOptions {
+    /// Reference to the private key, will be forwarded to external signer if available
     pub private_key: String,
+    /// DID of the identity
     pub identity: String,
 }
 
+/// API payload needed to create a credential definition needed for issuing credentials
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateCredentialDefinitionPayload {
+    /// DID of the definition issuer/owner
     pub issuer_did: String,
+    /// DID of the schema to issue the definition for
     pub schema_did: String,
+    /// DID of the issuer's public key
     pub issuer_public_key_did: String,
+    /// Key to sign the credential definition
     pub issuer_proving_key: String,
-    pub p_safe: Option<BigNumber>,
-    pub q_safe: Option<BigNumber>,
 }
 
+/// API payload needed to create a credential schema needed for issuing credentials
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateCredentialSchemaPayload {
+    /// DID of the schema issuer/owner
     pub issuer: String,
+    /// Name given to the schema
     pub schema_name: String,
+    /// A text describing the schema's purpose
     pub description: String,
+    /// The properties the schema holds
     pub properties: HashMap<String, SchemaProperty>,
+    /// Names of required properties
     pub required_properties: Vec<String>,
+    /// Tells a verifier whether properties not found in the schema are to be deemed valid
     pub allow_additional_properties: bool,
+    /// DID of the issuer's public key to validate the schema's assertion proof
     pub issuer_public_key_did: String,
+    /// Secret key to sign the schema with
     pub issuer_proving_key: String,
 }
 
+/// API payload to create a revocation registry definition needed to revoke issued credentials
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateRevocationRegistryDefinitionPayload {
+    /// DID of the credential definition this revocation registry is linked to
     pub credential_definition: String,
+    /// DID of the issuer's public key to validate the registry's assertion proof
     pub issuer_public_key_did: String,
+    /// Secret key to sign the registry with
     pub issuer_proving_key: String,
+    /// Maximum numbers of credentials to be tracked by this registry
     pub maximum_credential_count: u32,
 }
 
+/// Information about a created revocation registry definition
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateRevocationRegistryDefinitionResult {
+    /// Key needed to revoke credentials
     pub private_key: RevocationKeyPrivate,
+    /// Keeps track of used credential IDs and which ID to use next
     pub revocation_info: RevocationIdInformation,
+    /// Revocation data, needs to be persisted in a public space
     pub revocation_registry_definition: RevocationRegistryDefinition,
 }
 
+/// API payload needed to issue a new credential
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IssueCredentialPayload {
+    /// DID of the credential issuer
     pub issuer: String,
+    /// Date of issuance
     pub issuance_date: Option<String>,
+    /// DID of the credential subject
     pub subject: String,
+    /// Credential request sent by the subject
     pub credential_request: CredentialRequest,
+    /// DID of the associated revocation definition
     pub credential_revocation_definition: String,
+    /// Key to create the credential signature
     pub credential_private_key: CredentialPrivateKey,
+    /// Key to make this credential revokable
     pub revocation_private_key: RevocationKeyPrivate,
+    /// Tracker of current and next revocation IDs to use
     pub revocation_information: RevocationIdInformation,
 }
 
+/// API payload needed to finish a blinded credential signature by a holder/subject
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FinishCredentialPayload {
+    /// The issued credential
     pub credential: Credential,
+    /// The associated credential request
     pub credential_request: CredentialRequest,
+    /// DID of the revocation registry definition
     pub credential_revocation_definition: String,
+    /// Blinding factors created during credential request creation
     pub blinding_factors: CredentialSecretsBlindingFactors,
+    /// Master secret to incorporate into the signature
     pub master_secret: MasterSecret,
+    /// Current revocation state of the credential
     pub revocation_state: RevocationState,
 }
 
+/// Result of a call to issue_credential
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IssueCredentialResult {
+    /// The issued credential
     pub credential: Credential,
+    /// Tracker of current and next revocation IDs to use
     pub revocation_info: RevocationIdInformation,
+    /// Current revocation state of the credential
     pub revocation_state: RevocationState,
 }
 
+/// API payload for creating a credential offer as an issuer
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OfferCredentialPayload {
+    /// DID of the issuer
     pub issuer: String,
+    /// DID of the subject
     pub subject: String,
+    /// DID of the schema of the credential to be issued
     pub schema: String,
+    /// DID of the credential definition of the credential to be issued
     pub credential_definition: String,
 }
 
+/// API payload for creating proofs
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PresentProofPayload {
+    /// Proof request sent by a verifier
     pub proof_request: ProofRequest,
+    /// Map of credentials referenced by their schema DIDs for all of the requested credentials
     pub credentials: HashMap<String, Credential>,
+    /// All of the updated witnesses referenced by their associated credential's schema DID
     pub witnesses: HashMap<String, Witness>,
+    /// The holder's master secret
     pub master_secret: MasterSecret,
 }
 
+/// API payload for creating a credential proposal
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateCredentialProposalPayload {
+    /// DID of the issuer
     pub issuer: String,
+    /// DID of the subject
     pub subject: String,
+    /// DID of the schema
     pub schema: String,
 }
 
+/// API payload for creating a credential request
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestCredentialPayload {
+    /// Credential offering received by an issuer
     pub credential_offering: CredentialOffer,
+    /// DID of the schema
     pub credential_schema: String,
+    /// The holder's master secret
     pub master_secret: MasterSecret,
+    /// Key-value pairs to be signed in the credential
     pub credential_values: HashMap<String, String>,
 }
 
+/// API payload for creationg proof requests as a verifier
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestProofPayload {
+    /// DID of the verifier
     pub verifier_did: String,
+    /// DID of the prover
     pub prover_did: String,
+    /// List of subproof requests, each requiring the proof of one credential signature
     pub sub_proof_requests: Vec<SubProofRequest>,
 }
 
+/// API payload to revoke a credential
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RevokeCredentialPayload {
+    /// DID of the issuer
     pub issuer: String,
+    /// DID of the associated revocation registry definition
     pub revocation_registry_definition: String,
+    /// ID of the credential to be revoked
     pub credential_revocation_id: u32,
+    /// DID of the issuer's public key to validate the registry's assertion proof
     pub issuer_public_key_did: String,
+    /// Secret key to sign the registry with
     pub issuer_proving_key: String,
 }
 
+/// API payload to validate a received proof
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ValidateProofPayload {
+    /// Proof received by a holder/prover
     pub presented_proof: ProofPresentation,
+    /// Proof request that was sent to the holder/prover
     pub proof_request: ProofRequest,
 }
 
@@ -392,8 +468,6 @@ impl VadePlugin for VadeEvanCl {
             &payload.issuer_public_key_did,
             &payload.issuer_proving_key,
             &self.signer,
-            payload.p_safe.as_ref(),
-            payload.q_safe.as_ref(),
         )
         .await?;
 

@@ -108,7 +108,7 @@ impl TryInto<UrsaCredentialSchema> for CredentialSchema {
     }
 }
 
-// TODO: More supported fields?
+/// Metadata about a property of a credential schema
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemaProperty {
@@ -168,6 +168,7 @@ pub struct CredentialSchemaReference {
     pub r#type: String,
 }
 
+/// Payload/data part of a VC.
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CredentialSubject {
