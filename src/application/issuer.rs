@@ -82,8 +82,6 @@ impl Issuer {
     /// * `issuer_public_key_did` - DID of the public key to check the assertion proof of the definition document
     /// * `issuer_proving_key` - Private key used to create the assertion proof
     /// * `signer` - `Signer` to sign with
-    /// * `p_safe` - optional `BigNumber` to speed up key generation
-    /// * `q_safe` - optional `BigNumber` to speed up key generation
     ///
     /// # Returns
     /// * `CredentialDefinition` - The definition object to be saved in a publicly available and temper-proof way
@@ -95,12 +93,10 @@ impl Issuer {
         issuer_public_key_did: &str,
         issuer_proving_key: &str,
         signer: &Box<dyn Signer + Send + Sync>,
-        p_safe: Option<&BigNumber>,
-        q_safe: Option<&BigNumber>,
     ) -> Result<(CredentialDefinition, CredentialPrivateKey), Box<dyn Error>> {
         let created_at = get_now_as_iso_string();
         let (credential_private_key, crypto_credential_def) =
-            CryptoIssuer::create_credential_definition(&schema, p_safe, q_safe)?;
+            CryptoIssuer::create_credential_definition(&schema)?;
         let mut definition = CredentialDefinition {
             id: assigned_did.to_owned(),
             r#type: "EvanZKPCredentialDefinition".to_string(),
@@ -601,8 +597,6 @@ mod tests {
             "did:evan:testcore:0x0f737d1478ea29df0856169f25ca9129035d6fd1#key-1",
             &ISSUER_PRIVATE_KEY,
             &signer,
-            None,
-            None,
         )
         .await?;
 
