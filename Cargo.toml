@@ -26,9 +26,9 @@ default = ["portable"]
 # ursa build flags
 portable = [
     # default ursa build
-    "ursa/portable",
+    # "ursa/portable",
     # faster, relies on native features on platform, not compatible with released ursa
-    # "ursa/portable_native",
+    "ursa/portable_native",
 ]
 
 # build to run as wasm file; not compatible with `native` feature
@@ -55,11 +55,11 @@ vade-evan-substrate = { path = "../vade-evan-substrate", version = "0.0.1" }
 ###################################################################### feature specific dependencies
 tokio = { version = "0.2.22", optional = true }
 # only compatible with feature "ursa/portable"
-ursa = { version = "0.3.5",  default-features = false }
+# ursa = { version = "0.3.5",  default-features = false }
 # also compatible with feature "ursa/portable_native"
 # ursa = { path = "./../ursa/libursa", default-features = false }
 # also compatible with feature "ursa/portable_native"
-# ursa = { git = "https://github.com/evannetwork/ursa", branch = "portable-native",  default-features = false }
+ursa = { git = "https://github.com/evannetwork/ursa", branch = "portable-native",  default-features = false }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 chrono = { version = "0.4.11",  default-features = false, features=["wasm-bindgen", "clock", "js-sys"] }
