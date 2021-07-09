@@ -43,7 +43,14 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, error::Error};
 use ursa::cl::{constants::LARGE_PRIME, helpers::generate_safe_prime, Witness};
-use vade::{Vade, VadePlugin, VadePluginResultValue};
+use vade::{
+    AsyncResult,
+    ResultAsyncifier,
+    ResultSyncifier,
+    Vade,
+    VadePlugin,
+    VadePluginResultValue,
+};
 use vade_evan_substrate::signing::Signer;
 
 const EVAN_METHOD: &str = "did:evan";
@@ -307,13 +314,13 @@ pub struct ValidateProofPayload {
 }
 
 pub struct VadeEvanCl {
-    signer: Box<dyn Signer>,
+    signer: Box<dyn Signer + Send + Sync>,
     vade: Vade,
 }
 
 impl VadeEvanCl {
     /// Creates new instance of `VadeEvanCl`.
-    pub fn new(vade: Vade, signer: Box<dyn Signer>) -> VadeEvanCl {
+    pub fn new(vade: Vade, signer: Box<dyn Signer + Send + Sync>) -> VadeEvanCl {
         match env_logger::try_init() {
             Ok(_) | Err(_) => (),
         };
@@ -351,7 +358,8 @@ impl VadeEvanCl {
         let result = self
             .vade
             .did_create(EVAN_METHOD_ZKP, &options, &"".to_string())
-            .await?;
+            .await
+            .syncify()?;
         if result.is_empty() {
             return Err(Box::from(
                 "Could not generate DID as no listeners were registered for this method",
@@ -381,7 +389,11 @@ impl VadeEvanCl {
         }}"###,
             &private_key, &identity
         );
-        let result = self.vade.did_update(&did, &options, &payload).await?;
+        let result = self
+            .vade
+            .did_update(&did, &options, &payload)
+            .await
+            .syncify()?;
 
         if result.is_empty() {
             return Err(Box::from(
@@ -393,7 +405,7 @@ impl VadeEvanCl {
     }
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl VadePlugin for VadeEvanCl {
     /// Runs a custom function, currently supports
     ///
@@ -412,14 +424,14 @@ impl VadePlugin for VadeEvanCl {
         function: &str,
         options: &str,
         _payload: &str,
-    ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
+    ) -> AsyncResult<VadePluginResultValue<Option<String>>> {
         ignore_unrelated!(method, options);
         match function {
             "create_master_secret" => Ok(VadePluginResultValue::Success(Some(
-                serde_json::to_string(&Prover::create_master_secret()?)?,
+                serde_json::to_string(&Prover::create_master_secret().asyncify()?)?,
             ))),
             "generate_safe_prime" => Ok(VadePluginResultValue::Success(Some(
-                VadeEvanCl::generate_safe_prime()?,
+                VadeEvanCl::generate_safe_prime().asyncify()?,
             ))),
             _ => Ok(VadePluginResultValue::Ignored),
         }
@@ -451,7 +463,7 @@ impl VadePlugin for VadeEvanCl {
         method: &str,
         options: &str,
         payload: &str,
-    ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
+    ) -> AsyncResult<VadePluginResultValue<Option<String>>> {
         ignore_unrelated!(method, options);
         let options: AuthenticationOptions = parse!(&options, "options");
         let payload: CreateCredentialDefinitionPayload = parse!(&payload, "payload");
@@ -459,7 +471,8 @@ impl VadePlugin for VadeEvanCl {
 
         let generated_did = self
             .generate_did(&options.private_key, &options.identity)
-            .await?;
+            .await
+            .asyncify()?;
 
         let (definition, pk) = Issuer::create_credential_definition(
             &generated_did,
@@ -469,7 +482,8 @@ impl VadePlugin for VadeEvanCl {
             &payload.issuer_proving_key,
             &self.signer,
         )
-        .await?;
+        .await
+        .asyncify()?;
 
         let serialized = serde_json::to_string(&(&definition, &pk))?;
         let serialized_definition = serde_json::to_string(&definition)?;
@@ -479,7 +493,8 @@ impl VadePlugin for VadeEvanCl {
             &options.private_key,
             &options.identity,
         )
-        .await?;
+        .await
+        .asyncify()?;
 
         Ok(VadePluginResultValue::Success(Some(serialized)))
     }
@@ -501,14 +516,15 @@ impl VadePlugin for VadeEvanCl {
         method: &str,
         options: &str,
         payload: &str,
-    ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
+    ) -> AsyncResult<VadePluginResultValue<Option<String>>> {
         ignore_unrelated!(method, options);
         let options: AuthenticationOptions = parse!(&options, "options");
         let payload: CreateCredentialSchemaPayload = parse!(&payload, "payload");
 
         let generated_did = self
             .generate_did(&options.private_key, &options.identity)
-            .await?;
+            .await
+            .asyncify()?;
 
         let schema = Issuer::create_credential_schema(
             &generated_did,
@@ -522,7 +538,8 @@ impl VadePlugin for VadeEvanCl {
             &payload.issuer_proving_key,
             &self.signer,
         )
-        .await?;
+        .await
+        .asyncify()?;
 
         let serialized = serde_json::to_string(&schema)?;
         self.set_did_document(
@@ -531,7 +548,8 @@ impl VadePlugin for VadeEvanCl {
             &options.private_key,
             &options.identity,
         )
-        .await?;
+        .await
+        .asyncify()?;
 
         Ok(VadePluginResultValue::Success(Some(serialized)))
     }
@@ -555,7 +573,7 @@ impl VadePlugin for VadeEvanCl {
         method: &str,
         options: &str,
         payload: &str,
-    ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
+    ) -> AsyncResult<VadePluginResultValue<Option<String>>> {
         ignore_unrelated!(method, options);
         let options: AuthenticationOptions = parse!(&options, "options");
         let payload: CreateRevocationRegistryDefinitionPayload = parse!(&payload, "payload");
@@ -567,7 +585,8 @@ impl VadePlugin for VadeEvanCl {
 
         let generated_did = self
             .generate_did(&options.private_key, &options.identity)
-            .await?;
+            .await
+            .asyncify()?;
 
         let (definition, private_key, revocation_info) =
             Issuer::create_revocation_registry_definition(
@@ -578,7 +597,8 @@ impl VadePlugin for VadeEvanCl {
                 &self.signer,
                 payload.maximum_credential_count,
             )
-            .await?;
+            .await
+            .asyncify()?;
 
         let serialized_def = serde_json::to_string(&definition)?;
 
@@ -588,7 +608,8 @@ impl VadePlugin for VadeEvanCl {
             &options.private_key,
             &options.identity,
         )
-        .await?;
+        .await
+        .asyncify()?;
 
         let serialized_result = serde_json::to_string(&CreateRevocationRegistryDefinitionResult {
             private_key,
@@ -616,7 +637,7 @@ impl VadePlugin for VadeEvanCl {
         method: &str,
         options: &str,
         payload: &str,
-    ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
+    ) -> AsyncResult<VadePluginResultValue<Option<String>>> {
         ignore_unrelated!(method, options);
         let payload: IssueCredentialPayload = parse!(&payload, "payload");
         let definition: CredentialDefinition = get_document!(
@@ -642,7 +663,8 @@ impl VadePlugin for VadeEvanCl {
             payload.revocation_private_key,
             &payload.revocation_information,
             payload.issuance_date,
-        )?;
+        )
+        .asyncify()?;
 
         Ok(VadePluginResultValue::Success(Some(serde_json::to_string(
             &IssueCredentialResult {
@@ -669,7 +691,7 @@ impl VadePlugin for VadeEvanCl {
         method: &str,
         options: &str,
         payload: &str,
-    ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn std::error::Error>> {
+    ) -> AsyncResult<VadePluginResultValue<Option<String>>> {
         ignore_unrelated!(method, options);
 
         // let options: AuthenticationOptions = parse!(&options, "options");
@@ -704,7 +726,8 @@ impl VadePlugin for VadeEvanCl {
             &master_secret,
             &revocation_definition,
             &revocation_state.witness,
-        )?;
+        )
+        .asyncify()?;
         Ok(VadePluginResultValue::Success(Some(serde_json::to_string(
             &credential,
         )?)))
@@ -727,7 +750,7 @@ impl VadePlugin for VadeEvanCl {
         method: &str,
         options: &str,
         payload: &str,
-    ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
+    ) -> AsyncResult<VadePluginResultValue<Option<String>>> {
         ignore_unrelated!(method, options);
         let payload: OfferCredentialPayload = parse!(&payload, "payload");
         let result: CredentialOffer = Issuer::offer_credential(
@@ -735,7 +758,8 @@ impl VadePlugin for VadeEvanCl {
             &payload.subject,
             &payload.schema,
             &payload.credential_definition,
-        )?;
+        )
+        .asyncify()?;
         Ok(VadePluginResultValue::Success(Some(serde_json::to_string(
             &result,
         )?)))
@@ -758,7 +782,7 @@ impl VadePlugin for VadeEvanCl {
         method: &str,
         options: &str,
         payload: &str,
-    ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
+    ) -> AsyncResult<VadePluginResultValue<Option<String>>> {
         ignore_unrelated!(method, options);
         let payload: PresentProofPayload = parse!(&payload, "payload");
 
@@ -808,7 +832,8 @@ impl VadePlugin for VadeEvanCl {
             revocation_definitions,
             payload.witnesses,
             &payload.master_secret,
-        )?;
+        )
+        .asyncify()?;
 
         Ok(VadePluginResultValue::Success(Some(serde_json::to_string(
             &result,
@@ -831,7 +856,7 @@ impl VadePlugin for VadeEvanCl {
         method: &str,
         options: &str,
         payload: &str,
-    ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
+    ) -> AsyncResult<VadePluginResultValue<Option<String>>> {
         ignore_unrelated!(method, options);
         let payload: CreateCredentialProposalPayload = parse!(&payload, "payload");
         let result: CredentialProposal =
@@ -860,7 +885,7 @@ impl VadePlugin for VadeEvanCl {
         method: &str,
         options: &str,
         payload: &str,
-    ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
+    ) -> AsyncResult<VadePluginResultValue<Option<String>>> {
         ignore_unrelated!(method, options);
         let payload: RequestCredentialPayload = serde_json::from_str(&payload)
             .map_err(|e| format!("{} when parsing payload {}", &e, &payload))?;
@@ -878,7 +903,8 @@ impl VadePlugin for VadeEvanCl {
             schema,
             payload.master_secret,
             payload.credential_values,
-        )?;
+        )
+        .asyncify()?;
 
         Ok(VadePluginResultValue::Success(Some(serde_json::to_string(
             &result,
@@ -902,14 +928,15 @@ impl VadePlugin for VadeEvanCl {
         method: &str,
         options: &str,
         payload: &str,
-    ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
+    ) -> AsyncResult<VadePluginResultValue<Option<String>>> {
         ignore_unrelated!(method, options);
         let payload: RequestProofPayload = parse!(&payload, "payload");
         let result: ProofRequest = Verifier::request_proof(
             &payload.verifier_did,
             &payload.prover_did,
             payload.sub_proof_requests,
-        )?;
+        )
+        .asyncify()?;
 
         Ok(VadePluginResultValue::Success(Some(serde_json::to_string(
             &result,
@@ -937,7 +964,7 @@ impl VadePlugin for VadeEvanCl {
         method: &str,
         options: &str,
         payload: &str,
-    ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
+    ) -> AsyncResult<VadePluginResultValue<Option<String>>> {
         ignore_unrelated!(method, options);
         let options: AuthenticationOptions = parse!(&options, "options");
         let payload: RevokeCredentialPayload = parse!(&payload, "payload");
@@ -955,7 +982,8 @@ impl VadePlugin for VadeEvanCl {
             &payload.issuer_proving_key,
             &self.signer,
         )
-        .await?;
+        .await
+        .asyncify()?;
 
         let serialized = serde_json::to_string(&updated_registry)?;
 
@@ -965,7 +993,8 @@ impl VadePlugin for VadeEvanCl {
             &options.private_key,
             &options.identity,
         )
-        .await?;
+        .await
+        .asyncify()?;
 
         Ok(VadePluginResultValue::Success(Some(serialized)))
     }
@@ -985,7 +1014,7 @@ impl VadePlugin for VadeEvanCl {
         method: &str,
         options: &str,
         payload: &str,
-    ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
+    ) -> AsyncResult<VadePluginResultValue<Option<String>>> {
         ignore_unrelated!(method, options);
         let payload: ValidateProofPayload = parse!(&payload, "payload");
 

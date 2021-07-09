@@ -41,7 +41,7 @@ use utilities::test_data::{
         SUBJECT_DID,
     },
 };
-use vade::Vade;
+use vade::{ResultSyncifier, Vade};
 use vade_evan_cl::{
     application::{
         datatypes::{
@@ -968,7 +968,8 @@ async fn can_create_safe_primes() -> Result<(), Box<dyn Error>> {
 
     let results = vade
         .run_custom_function(EVAN_METHOD, "generate_safe_prime", TYPE_OPTIONS, "")
-        .await?;
+        .await
+        .syncify()?;
 
     assert_eq!(results.len(), 1);
     let result = results[0].as_ref().ok_or("could not get result")?;
@@ -993,7 +994,8 @@ async fn create_credential_definition(
     );
     let results = vade
         .vc_zkp_create_credential_definition(EVAN_METHOD, &get_options(), &payload)
-        .await?;
+        .await
+        .syncify()?;
 
     // check results
     assert_eq!(results.len(), 1);
@@ -1014,7 +1016,8 @@ async fn create_credential_offer(
 
     let results = vade
         .vc_zkp_create_credential_offer(EVAN_METHOD, TYPE_OPTIONS, &payload)
-        .await?;
+        .await
+        .syncify()?;
 
     // check results
     assert_eq!(results.len(), 1);
@@ -1037,7 +1040,8 @@ async fn create_credential_proposal(
     );
     let results = vade
         .vc_zkp_create_credential_proposal(EVAN_METHOD, TYPE_OPTIONS, &payload)
-        .await?;
+        .await
+        .syncify()?;
 
     // check results
     assert_eq!(results.len(), 1);
@@ -1068,7 +1072,8 @@ async fn create_credential_request(
     );
     let results = vade
         .vc_zkp_request_credential(EVAN_METHOD, TYPE_OPTIONS, &payload)
-        .await?;
+        .await
+        .syncify()?;
 
     // check results
     assert_eq!(results.len(), 1);
@@ -1100,7 +1105,8 @@ async fn create_two_property_credential_request(
     );
     let results = vade
         .vc_zkp_request_credential(EVAN_METHOD, TYPE_OPTIONS, &payload)
-        .await?;
+        .await
+        .syncify()?;
 
     // check results
     assert_eq!(results.len(), 1);
@@ -1131,7 +1137,8 @@ async fn create_credential_request_with_missing_required_property(
     );
     let results = vade
         .vc_zkp_request_credential(EVAN_METHOD, TYPE_OPTIONS, &payload)
-        .await?;
+        .await
+        .syncify()?;
 
     // check results
     assert_eq!(results.len(), 1);
@@ -1165,7 +1172,8 @@ async fn create_extended_credential_schema(
     );
     let results = vade
         .vc_zkp_create_credential_schema(EVAN_METHOD, &get_options(), &payload)
-        .await?;
+        .await
+        .syncify()?;
 
     // check results
     assert_eq!(results.len(), 1);
@@ -1190,7 +1198,8 @@ async fn create_revocation_registry_definition(
     );
     let results = vade
         .vc_zkp_create_revocation_registry_definition(EVAN_METHOD, &get_options(), &payload)
-        .await?;
+        .await
+        .syncify()?;
 
     // check results
     assert_eq!(results.len(), 1);
@@ -1212,7 +1221,7 @@ fn get_options() -> String {
 }
 
 fn get_resolver() -> VadeEvanSubstrate {
-    let signer: Box<dyn Signer> = Box::new(LocalSigner::new());
+    let signer: Box<dyn Signer + Send + Sync> = Box::new(LocalSigner::new());
     VadeEvanSubstrate::new(ResolverConfig {
         signer,
         target: env::var("VADE_EVAN_SUBSTRATE_IP")
@@ -1234,7 +1243,7 @@ fn get_vade_evan() -> VadeEvanCl {
     let mut internal_vade = Vade::new();
     internal_vade.register_plugin(Box::from(substrate_resolver));
 
-    let signer: Box<dyn Signer> = Box::new(LocalSigner::new());
+    let signer: Box<dyn Signer + Send + Sync> = Box::new(LocalSigner::new());
     VadeEvanCl::new(internal_vade, signer)
 }
 
@@ -1272,7 +1281,8 @@ async fn issue_credential(
     );
     let results = vade
         .vc_zkp_issue_credential(EVAN_METHOD, TYPE_OPTIONS, &payload)
-        .await?;
+        .await
+        .syncify()?;
 
     // check results
     assert_eq!(results.len(), 1);
@@ -1314,7 +1324,8 @@ async fn finish_credential(
     );
     let results = vade
         .vc_zkp_finish_credential(EVAN_METHOD, TYPE_OPTIONS, &payload)
-        .await?;
+        .await
+        .syncify()?;
 
     // check results
     assert_eq!(results.len(), 1);
@@ -1340,7 +1351,8 @@ async fn request_proof(
     );
     let results = vade
         .vc_zkp_request_proof(EVAN_METHOD, TYPE_OPTIONS, &payload)
-        .await?;
+        .await
+        .syncify()?;
 
     // check results
     assert_eq!(results.len(), 1);
@@ -1370,7 +1382,8 @@ async fn revoke_credential(
     );
     let results = vade
         .vc_zkp_revoke_credential(EVAN_METHOD, &get_options(), &payload)
-        .await?;
+        .await
+        .syncify()?;
 
     assert_eq!(results.len(), 1);
 
@@ -1411,7 +1424,8 @@ async fn present_proof(
     );
     let results = vade
         .vc_zkp_present_proof(EVAN_METHOD, TYPE_OPTIONS, &payload)
-        .await?;
+        .await
+        .syncify()?;
 
     // check results
     assert_eq!(results.len(), 1);
@@ -1435,7 +1449,8 @@ async fn verify_proof(
     );
     let results = vade
         .vc_zkp_verify_proof(EVAN_METHOD, TYPE_OPTIONS, &payload)
-        .await?;
+        .await
+        .syncify()?;
 
     // check results
     assert_eq!(results.len(), 1);
@@ -1465,7 +1480,8 @@ async fn whitelist_identity(vade: &mut Vade) -> Result<(), Box<dyn Error>> {
         true,
         resolver
             .is_whitelisted(&SIGNER_1_DID, &SIGNER_1_PRIVATE_KEY)
-            .await?
+            .await
+            .syncify()?
     );
 
     Ok(())
@@ -1496,7 +1512,8 @@ async fn ensure_whitelist(vade: &mut Vade, signer: &str) -> Result<(), Box<dyn E
         true,
         resolver
             .is_whitelisted(&SIGNER_2_DID, &SIGNER_2_PRIVATE_KEY)
-            .await?
+            .await
+            .syncify()?
     );
 
     Ok(())
@@ -1524,7 +1541,8 @@ async fn create_credential_schema(vade: &mut Vade) -> Result<CredentialSchema, B
     );
     let results = vade
         .vc_zkp_create_credential_schema(EVAN_METHOD, &get_options(), &message_str)
-        .await?;
+        .await
+        .syncify()?;
 
     // check results
     assert_eq!(results.len(), 1);
@@ -1557,7 +1575,8 @@ async fn create_three_property_credential_request(
     );
     let results = vade
         .vc_zkp_create_credential_schema(EVAN_METHOD, &get_options(), &message_str)
-        .await?;
+        .await
+        .syncify()?;
 
     // check results
     assert_eq!(results.len(), 1);
@@ -1569,7 +1588,8 @@ async fn create_three_property_credential_request(
 async fn create_master_secret(vade: &mut Vade) -> Result<MasterSecret, Box<dyn Error>> {
     let results = vade
         .run_custom_function(EVAN_METHOD, "create_master_secret", TYPE_OPTIONS, "")
-        .await?;
+        .await
+        .syncify()?;
 
     Ok(serde_json::from_str(&results[0].as_ref().unwrap()).unwrap())
 }
