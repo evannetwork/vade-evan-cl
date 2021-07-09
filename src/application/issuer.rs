@@ -92,7 +92,7 @@ impl Issuer {
         schema: &CredentialSchema,
         issuer_public_key_did: &str,
         issuer_proving_key: &str,
-        signer: &Box<dyn Signer + Send + Sync>,
+        signer: &Box<dyn Signer>,
     ) -> Result<(CredentialDefinition, CredentialPrivateKey), Box<dyn Error>> {
         let created_at = get_now_as_iso_string();
         let (credential_private_key, crypto_credential_def) =
@@ -151,7 +151,7 @@ impl Issuer {
         allow_additional_properties: bool,
         issuer_public_key_did: &str,
         issuer_proving_key: &str,
-        signer: &Box<dyn Signer + Send + Sync>,
+        signer: &Box<dyn Signer>,
     ) -> Result<CredentialSchema, Box<dyn Error>> {
         let created_at = get_now_as_iso_string();
 
@@ -205,7 +205,7 @@ impl Issuer {
         credential_definition: &CredentialDefinition,
         issuer_public_key_did: &str,
         issuer_proving_key: &str,
-        signer: &Box<dyn Signer + Send + Sync>,
+        signer: &Box<dyn Signer>,
         maximum_credential_count: u32,
     ) -> Result<
         (
@@ -448,7 +448,7 @@ impl Issuer {
         revocation_id: u32,
         issuer_public_key_did: &str,
         issuer_proving_key: &str,
-        signer: &Box<dyn Signer + Send + Sync>,
+        signer: &Box<dyn Signer>,
     ) -> Result<RevocationRegistryDefinition, Box<dyn Error>> {
         let updated_at = get_now_as_iso_string();
 
@@ -548,7 +548,7 @@ mod tests {
         );
         required_properties.push("test_property_string".to_owned());
 
-        let signer: Box<dyn Signer + Send + Sync> = Box::new(LocalSigner::new());
+        let signer: Box<dyn Signer> = Box::new(LocalSigner::new());
         let schema: CredentialSchema = Issuer::create_credential_schema(
             EXAMPLE_DID_1,
             ISSUER_DID,
@@ -589,7 +589,7 @@ mod tests {
     #[tokio::test]
     async fn can_create_credential_definition() -> Result<(), Box<dyn Error>> {
         let schema: CredentialSchema = serde_json::from_str(&EXAMPLE_CREDENTIAL_SCHEMA).unwrap();
-        let signer: Box<dyn Signer + Send + Sync> = Box::new(LocalSigner::new());
+        let signer: Box<dyn Signer> = Box::new(LocalSigner::new());
         let (definition, _) = Issuer::create_credential_definition(
             &EXAMPLE_DID_1,
             &ISSUER_DID,
