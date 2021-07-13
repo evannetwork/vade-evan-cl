@@ -22,7 +22,6 @@ use serde_json::{value::RawValue, Value};
 use sha2::{Digest, Sha256};
 use sha3::Keccak256;
 use std::{convert::TryInto, error::Error};
-use vade::ResultSyncifier;
 use vade_evan_substrate::signing::Signer;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -49,7 +48,7 @@ pub async fn create_assertion_proof(
     verification_method: &str,
     issuer: &str,
     private_key: &str,
-    signer: &Box<dyn Signer + Send + Sync>,
+    signer: &Box<dyn Signer>,
 ) -> Result<AssertionProof, Box<dyn Error>> {
     // create to-be-signed jwt
     let header_str = r#"{"typ":"JWT","alg":"ES256K-R"}"#;
@@ -82,10 +81,7 @@ pub async fn create_assertion_proof(
     // sign this hash
     let hash_arr: [u8; 32] = hash.try_into().map_err(|_| "slice with incorrect length")?;
     let message = format!("0x{}", &hex::encode(hash_arr));
-    let (sig_and_rec, _): ([u8; 65], _) = signer
-        .sign_message(&message, &private_key)
-        .await
-        .syncify()?;
+    let (sig_and_rec, _): ([u8; 65], _) = signer.sign_message(&message, &private_key).await?;
     let padded = BASE64URL.encode(&sig_and_rec);
     let sig_base64url = padded.trim_end_matches('=');
     debug!("signature base64 url encoded: {:?}", &sig_base64url);
@@ -319,7 +315,7 @@ mod tests {
         // First deserialize it into a data type or else serde_json will serialize the document into raw unformatted text
         let schema: CredentialSchema = serde_json::from_str(EXAMPLE_CREDENTIAL_SCHEMA).unwrap();
         let doc_to_sign = serde_json::to_value(&schema).unwrap();
-        let signer: Box<dyn Signer + Send + Sync> = Box::new(LocalSigner::new());
+        let signer: Box<dyn Signer> = Box::new(LocalSigner::new());
         let proof = create_assertion_proof(
             &doc_to_sign,
             &format!("{}#key-1", &SIGNER_1_DID),
@@ -352,7 +348,6 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore] // test remote signer currently not available
     async fn can_sign_messages_remotely() -> Result<(), Box<dyn Error>> {
         let signer: Box<dyn Signer> = Box::new(RemoteSigner::new(
             env::var("VADE_EVAN_SIGNING_URL")
@@ -360,8 +355,7 @@ mod tests {
         ));
         let (_signature, message): ([u8; 65], [u8; 32]) = signer
             .sign_message("one two three four", REMOTE_SIGNER_1_PRIVATE_KEY)
-            .await
-            .syncify()?;
+            .await?;
         let message_hash = format!("0x{}", hex::encode(message));
         assert_eq!(message_hash, REMOTE_SIGNER_1_SIGNED_MESSAGE_HASH);
 
@@ -373,8 +367,7 @@ mod tests {
         let signer = LocalSigner::new();
         let (_signature, message): ([u8; 65], [u8; 32]) = signer
             .sign_message("one two three four", SIGNER_1_PRIVATE_KEY)
-            .await
-            .syncify()?;
+            .await?;
         let message_hash = format!("0x{}", hex::encode(message));
         assert_eq!(
             message_hash,
