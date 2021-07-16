@@ -41,16 +41,13 @@ use std::{
     collections::{HashMap, HashSet},
     error::Error,
 };
-use ursa::{
-    bn::BigNumber,
-    cl::{
-        new_nonce,
-        CredentialPrivateKey,
-        RevocationKeyPrivate,
-        RevocationRegistry,
-        RevocationRegistryDelta,
-        RevocationTailsGenerator,
-    },
+use ursa::cl::{
+    new_nonce,
+    CredentialPrivateKey,
+    RevocationKeyPrivate,
+    RevocationRegistry,
+    RevocationRegistryDelta,
+    RevocationTailsGenerator,
 };
 use vade_evan_substrate::signing::Signer;
 
