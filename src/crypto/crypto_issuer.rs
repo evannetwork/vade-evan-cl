@@ -19,21 +19,18 @@ use crate::{
     crypto::crypto_datatypes::{CryptoCredentialDefinition, CryptoRevocationRegistryDefinition},
 };
 use std::{collections::HashSet, error::Error};
-use ursa::{
-    bn::BigNumber,
-    cl::{
-        issuer::Issuer as CryptoIssuer,
-        new_nonce,
-        CredentialPrivateKey,
-        CredentialPublicKey,
-        CredentialSignature,
-        Nonce,
-        RevocationKeyPrivate,
-        RevocationRegistryDelta,
-        SignatureCorrectnessProof,
-        SimpleTailsAccessor,
-        Witness,
-    },
+use ursa::cl::{
+    issuer::Issuer as CryptoIssuer,
+    new_nonce,
+    CredentialPrivateKey,
+    CredentialPublicKey,
+    CredentialSignature,
+    Nonce,
+    RevocationKeyPrivate,
+    RevocationRegistryDelta,
+    SignatureCorrectnessProof,
+    SimpleTailsAccessor,
+    Witness,
 };
 
 // Mediator class to broker between the high-level vade-evan application issuer and the Ursa issuer class

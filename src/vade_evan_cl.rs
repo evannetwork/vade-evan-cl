@@ -361,7 +361,8 @@ impl VadeEvanCl {
         let generated_did = result[0]
             .as_ref()
             .ok_or("could not generate DID")?
-            .to_owned();
+            .trim_matches('"')
+            .to_string();
 
         Ok(generated_did)
     }
