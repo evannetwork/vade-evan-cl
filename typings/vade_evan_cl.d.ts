@@ -97,6 +97,8 @@ export interface CreateRevocationRegistryDefinitionPayload {
   issuerProvingKey: string,
   /** Maximum numbers of credentials to be tracked by this registry */
   maximumCredentialCount: number,
+  pSafe?: BigNumber
+  qSafe?: BigNumber,
 }
 
 /** Information about a created revocation registry definition */
