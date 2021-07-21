@@ -63,6 +63,8 @@ export interface CreateCredentialDefinitionPayload {
   issuerPublicKeyDid: string,
   /** Key to sign the credential definition */
   issuerProvingKey: string,
+  pSafe?: BigNumber,
+  qSafe?: BigNumber,
 }
 
 export type CreateCredentialDefinitionResult = [CredentialDefinition, CredentialPrivateKey];
@@ -97,8 +99,6 @@ export interface CreateRevocationRegistryDefinitionPayload {
   issuerProvingKey: string,
   /** Maximum numbers of credentials to be tracked by this registry */
   maximumCredentialCount: number,
-  pSafe?: BigNumber
-  qSafe?: BigNumber,
 }
 
 /** Information about a created revocation registry definition */
