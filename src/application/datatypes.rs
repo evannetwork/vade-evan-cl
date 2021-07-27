@@ -43,6 +43,8 @@ pub use ursa::cl::{
     RevocationKeyPrivate,
 };
 
+pub const CL_TYPE: &str = "CL";
+
 /// Holds metadata and the key material used to issue and process credentials,
 /// and create and verify proofs.
 /// Needs to be stored publicly available and temper-proof.
@@ -106,7 +108,7 @@ impl TryInto<UrsaCredentialSchema> for CredentialSchema {
     }
 }
 
-// TODO: More supported fields?
+/// Metadata about a property of a credential schema
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SchemaProperty {
@@ -166,6 +168,7 @@ pub struct CredentialSchemaReference {
     pub r#type: String,
 }
 
+/// Payload/data part of a VC.
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CredentialSubject {
@@ -257,6 +260,7 @@ pub struct ProofRequest {
     pub prover: String,
     pub created_at: String,
     pub nonce: Nonce,
+    pub r#type: String,
     pub sub_proof_requests: Vec<SubProofRequest>,
 }
 

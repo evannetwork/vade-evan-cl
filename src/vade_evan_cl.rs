@@ -14,45 +14,41 @@
   limitations under the License.
 */
 
-use crate::{
-    application::{
-        datatypes::{
-            Credential,
-            CredentialDefinition,
-            CredentialOffer,
-            CredentialPrivateKey,
-            CredentialProposal,
-            CredentialRequest,
-            CredentialSchema,
-            CredentialSecretsBlindingFactors,
-            MasterSecret,
-            ProofPresentation,
-            ProofRequest,
-            ProofVerification,
-            RevocationIdInformation,
-            RevocationKeyPrivate,
-            RevocationRegistryDefinition,
-            RevocationState,
-            SchemaProperty,
-            SubProofRequest,
-        },
-        issuer::Issuer,
-        prover::Prover,
-        verifier::Verifier,
+use crate::application::{
+    datatypes::{
+        Credential,
+        CredentialDefinition,
+        CredentialOffer,
+        CredentialPrivateKey,
+        CredentialProposal,
+        CredentialRequest,
+        CredentialSchema,
+        CredentialSecretsBlindingFactors,
+        MasterSecret,
+        ProofPresentation,
+        ProofRequest,
+        ProofVerification,
+        RevocationIdInformation,
+        RevocationKeyPrivate,
+        RevocationRegistryDefinition,
+        RevocationState,
+        SchemaProperty,
+        SubProofRequest,
     },
-    signing::Signer,
+    issuer::Issuer,
+    prover::Prover,
+    verifier::Verifier,
 };
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, error::Error};
-use ursa::{
-    bn::BigNumber,
-    cl::{constants::LARGE_PRIME, helpers::generate_safe_prime, Witness},
-};
+use ursa::cl::{constants::LARGE_PRIME, helpers::generate_safe_prime, Witness};
 use vade::{Vade, VadePlugin, VadePluginResultValue};
+use vade_evan_substrate::signing::Signer;
 
 const EVAN_METHOD: &str = "did:evan";
 const EVAN_METHOD_ZKP: &str = "did:evan:zkp";
+const PROOF_METHOD_CL: &str = "cl";
 
 macro_rules! parse {
     ($data:expr, $type_name:expr) => {{
@@ -72,160 +68,267 @@ macro_rules! get_document {
     }};
 }
 
+macro_rules! ignore_unrelated {
+    ($method:expr, $options:expr) => {{
+        if $method != EVAN_METHOD {
+            return Ok(VadePluginResultValue::Ignored);
+        }
+        let type_options: TypeOptions = parse!($options, "options");
+        match type_options.r#type.as_deref() {
+            Some(PROOF_METHOD_CL) => (),
+            _ => return Ok(VadePluginResultValue::Ignored),
+        };
+    }};
+}
+
+/// Message passed to vade containing the desired credential type.
+/// Does not perform action if type does not indicate credential type CL.
+/// This can be done by passing "cl" as the value for "type".
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TypeOptions {
+    pub r#type: Option<String>,
+}
+
+/// Contains information necessary to make on-chain transactions (e.g. updating a DID Document).
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthenticationOptions {
+    /// Reference to the private key, will be forwarded to external signer if available
     pub private_key: String,
+    /// DID of the identity
     pub identity: String,
 }
 
+/// API payload needed to create a credential definition needed for issuing credentials
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateCredentialDefinitionPayload {
+    /// DID of the definition issuer/owner
     pub issuer_did: String,
+    /// DID of the schema to issue the definition for
     pub schema_did: String,
+    /// DID of the issuer's public key
     pub issuer_public_key_did: String,
+    /// Key to sign the credential definition
     pub issuer_proving_key: String,
-    pub p_safe: Option<BigNumber>,
-    pub q_safe: Option<BigNumber>,
 }
 
+/// API payload needed to create a credential schema needed for issuing credentials
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateCredentialSchemaPayload {
+    /// DID of the schema issuer/owner
     pub issuer: String,
+    /// Name given to the schema
     pub schema_name: String,
+    /// A text describing the schema's purpose
     pub description: String,
+    /// The properties the schema holds
     pub properties: HashMap<String, SchemaProperty>,
+    /// Names of required properties
     pub required_properties: Vec<String>,
+    /// Tells a verifier whether properties not found in the schema are to be deemed valid
     pub allow_additional_properties: bool,
+    /// DID of the issuer's public key to validate the schema's assertion proof
     pub issuer_public_key_did: String,
+    /// Secret key to sign the schema with
     pub issuer_proving_key: String,
 }
 
+/// API payload to create a revocation registry definition needed to revoke issued credentials
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateRevocationRegistryDefinitionPayload {
+    /// DID of the credential definition this revocation registry is linked to
     pub credential_definition: String,
+    /// DID of the issuer's public key to validate the registry's assertion proof
     pub issuer_public_key_did: String,
+    /// Secret key to sign the registry with
     pub issuer_proving_key: String,
+    /// Maximum numbers of credentials to be tracked by this registry
     pub maximum_credential_count: u32,
 }
 
+/// Information about a created revocation registry definition
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateRevocationRegistryDefinitionResult {
+    /// Key needed to revoke credentials
     pub private_key: RevocationKeyPrivate,
+    /// Keeps track of used credential IDs and which ID to use next
     pub revocation_info: RevocationIdInformation,
+    /// Revocation data, needs to be persisted in a public space
     pub revocation_registry_definition: RevocationRegistryDefinition,
 }
 
+/// API payload needed to issue a new credential
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IssueCredentialPayload {
+    /// DID of the credential issuer
     pub issuer: String,
+    /// Date of issuance
     pub issuance_date: Option<String>,
+    /// DID of the credential subject
     pub subject: String,
+    /// Credential request sent by the subject
     pub credential_request: CredentialRequest,
+    /// DID of the associated revocation definition
     pub credential_revocation_definition: String,
+    /// Key to create the credential signature
     pub credential_private_key: CredentialPrivateKey,
+    /// Key to make this credential revokable
     pub revocation_private_key: RevocationKeyPrivate,
+    /// Tracker of current and next revocation IDs to use
     pub revocation_information: RevocationIdInformation,
-    pub blinding_factors: CredentialSecretsBlindingFactors,
-    pub master_secret: MasterSecret,
 }
 
+/// API payload needed to finish a blinded credential signature by a holder/subject
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct IssueCredentialResult {
+pub struct FinishCredentialPayload {
+    /// The issued credential
     pub credential: Credential,
-    pub revocation_info: RevocationIdInformation,
+    /// The associated credential request
+    pub credential_request: CredentialRequest,
+    /// DID of the revocation registry definition
+    pub credential_revocation_definition: String,
+    /// Blinding factors created during credential request creation
+    pub blinding_factors: CredentialSecretsBlindingFactors,
+    /// Master secret to incorporate into the signature
+    pub master_secret: MasterSecret,
+    /// Current revocation state of the credential
     pub revocation_state: RevocationState,
 }
 
+/// Result of a call to issue_credential
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IssueCredentialResult {
+    /// The issued credential
+    pub credential: Credential,
+    /// Tracker of current and next revocation IDs to use
+    pub revocation_info: RevocationIdInformation,
+    /// Current revocation state of the credential
+    pub revocation_state: RevocationState,
+}
+
+/// API payload for creating a credential offer as an issuer
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OfferCredentialPayload {
+    /// DID of the issuer
     pub issuer: String,
+    /// DID of the subject
     pub subject: String,
+    /// DID of the schema of the credential to be issued
     pub schema: String,
+    /// DID of the credential definition of the credential to be issued
     pub credential_definition: String,
 }
 
+/// API payload for creating proofs
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PresentProofPayload {
+    /// Proof request sent by a verifier
     pub proof_request: ProofRequest,
+    /// Map of credentials referenced by their schema DIDs for all of the requested credentials
     pub credentials: HashMap<String, Credential>,
+    /// All of the updated witnesses referenced by their associated credential's schema DID
     pub witnesses: HashMap<String, Witness>,
+    /// The holder's master secret
     pub master_secret: MasterSecret,
 }
 
+/// API payload for creating a credential proposal
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateCredentialProposalPayload {
+    /// DID of the issuer
     pub issuer: String,
+    /// DID of the subject
     pub subject: String,
+    /// DID of the schema
     pub schema: String,
 }
 
+/// API payload for creating a credential request
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestCredentialPayload {
+    /// Credential offering received by an issuer
     pub credential_offering: CredentialOffer,
+    /// DID of the schema
     pub credential_schema: String,
+    /// The holder's master secret
     pub master_secret: MasterSecret,
+    /// Key-value pairs to be signed in the credential
     pub credential_values: HashMap<String, String>,
 }
 
+/// API payload for creationg proof requests as a verifier
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RequestProofPayload {
+    /// DID of the verifier
     pub verifier_did: String,
+    /// DID of the prover
     pub prover_did: String,
+    /// List of subproof requests, each requiring the proof of one credential signature
     pub sub_proof_requests: Vec<SubProofRequest>,
 }
 
+/// API payload to revoke a credential
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RevokeCredentialPayload {
+    /// DID of the issuer
     pub issuer: String,
+    /// DID of the associated revocation registry definition
     pub revocation_registry_definition: String,
+    /// ID of the credential to be revoked
     pub credential_revocation_id: u32,
+    /// DID of the issuer's public key to validate the registry's assertion proof
     pub issuer_public_key_did: String,
+    /// Secret key to sign the registry with
     pub issuer_proving_key: String,
 }
 
+/// API payload to validate a received proof
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ValidateProofPayload {
+    /// Proof received by a holder/prover
     pub presented_proof: ProofPresentation,
+    /// Proof request that was sent to the holder/prover
     pub proof_request: ProofRequest,
 }
 
-pub struct VadeEvan {
+pub struct VadeEvanCl {
     signer: Box<dyn Signer>,
     vade: Vade,
 }
 
-impl VadeEvan {
-    /// Creates new instance of `VadeEvan`.
-    pub fn new(vade: Vade, signer: Box<dyn Signer>) -> VadeEvan {
+impl VadeEvanCl {
+    /// Creates new instance of `VadeEvanCl`.
+    pub fn new(vade: Vade, signer: Box<dyn Signer>) -> VadeEvanCl {
         match env_logger::try_init() {
             Ok(_) | Err(_) => (),
         };
-        VadeEvan { signer, vade }
+        VadeEvanCl { signer, vade }
     }
 }
 
-impl VadeEvan {
+impl VadeEvanCl {
     /// Generate new safe prime number with `ursa`'s configured default size.
     /// Can be used to generate values for:
     ///
     /// - payload.p_safe
     /// - payload.q_safe
     ///
-    /// for [`vc_zkp_create_credential_definition`](https://docs.rs/vade_evan/*/vade_evan/struct.VadeEvan.html#method.vc_zkp_create_credential_definition).
+    /// for [`vc_zkp_create_credential_definition`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.VadeEvanCl.html#method.vc_zkp_create_credential_definition).
     pub fn generate_safe_prime() -> Result<String, Box<dyn Error>> {
         let bn = generate_safe_prime(LARGE_PRIME)
             .map_err(|err| format!("could not generate safe prime number; {}", &err))?;
@@ -258,7 +361,8 @@ impl VadeEvan {
         let generated_did = result[0]
             .as_ref()
             .ok_or("could not generate DID")?
-            .to_owned();
+            .trim_matches('"')
+            .to_string();
 
         Ok(generated_did)
     }
@@ -291,30 +395,32 @@ impl VadeEvan {
 }
 
 #[async_trait(?Send)]
-impl VadePlugin for VadeEvan {
+impl VadePlugin for VadeEvanCl {
     /// Runs a custom function, currently supports
     ///
-    /// - `generate_safe_prime` to generate safe prime numbers for [`vc_zkp_create_credential_definition`](https://docs.rs/vade_evan/*/vade_evan/struct.VadeEvan.html#method.vc_zkp_create_credential_definition)
+    /// - `create_master_secret` to create new master secrets
+    /// - `generate_safe_prime` to generate safe prime numbers for [`vc_zkp_create_credential_definition`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.VadeEvanCl.html#method.vc_zkp_create_credential_definition)
     ///
     /// # Arguments
     ///
     /// * `method` - method to call a function for (e.g. "did:example")
-    /// * `function` - currently only supports `generate_safe_prime`
-    /// * `_options` - currently not used, so can be left empty
+    /// * `function` - currently supports `generate_safe_prime` and `create_master_secret`
+    /// * `options` - serialized [`TypeOptions`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.TypeOptions.html)
     /// * `_payload` - currently not used, so can be left empty
     async fn run_custom_function(
         &mut self,
         method: &str,
         function: &str,
-        _options: &str,
+        options: &str,
         _payload: &str,
     ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
-        if method != EVAN_METHOD {
-            return Ok(VadePluginResultValue::Ignored);
-        }
+        ignore_unrelated!(method, options);
         match function {
+            "create_master_secret" => Ok(VadePluginResultValue::Success(Some(
+                serde_json::to_string(&Prover::create_master_secret()?)?,
+            ))),
             "generate_safe_prime" => Ok(VadePluginResultValue::Success(Some(
-                VadeEvan::generate_safe_prime()?,
+                VadeEvanCl::generate_safe_prime()?,
             ))),
             _ => Ok(VadePluginResultValue::Ignored),
         }
@@ -326,18 +432,18 @@ impl VadePlugin for VadeEvan {
     ///
     /// To improve performance, safe prime numbers that are used to derive keys from **can** be
     /// pre-generated with custom function `generate_safe_prime` which can be called with
-    /// [`run_custom_function`](https://docs.rs/vade_evan/*/vade_evan/struct.VadeEvan.html#method.run_custom_function).
+    /// [`run_custom_function`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.VadeEvanCl.html#method.run_custom_function).
     /// For these numbers two calls have to be made to create two distinct numbers. They can then
-    /// be provided as [`payload.p_safe`](https://docs.rs/vade_evan/*/vade_evan/struct.CreateCredentialDefinitionPayload.html#structfield.p_safe)
-    /// and [`payload.q_safe`](https://docs.rs/vade_evan/*/vade_evan/struct.CreateCredentialDefinitionPayload.html#structfield.q_safe).
+    /// be provided as [`payload.p_safe`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.CreateCredentialDefinitionPayload.html#structfield.p_safe)
+    /// and [`payload.q_safe`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.CreateCredentialDefinitionPayload.html#structfield.q_safe).
     ///
     /// Note that `options.identity` needs to be whitelisted for this function.
     ///
     /// # Arguments
     ///
     /// * `method` - method to create a credential definition for (e.g. "did:example")
-    /// * `options` - serialized [`AuthenticationOptions`](https://docs.rs/vade_evan/*/vade_evan/struct.AuthenticationOptions.html)
-    /// * `payload` - serialized [`CreateCredentialDefinitionPayload`](https://docs.rs/vade_evan/*/vade_evan/struct.CreateCredentialDefinitionPayload.html)
+    /// * `options` - serialized [`TypeOptions`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.AuthenticationOptions.html)
+    /// * `payload` - serialized [`CreateCredentialDefinitionPayload`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.CreateCredentialDefinitionPayload.html)
     ///
     /// # Returns
     /// * `Option<String>` - The created definition as a JSON object
@@ -347,9 +453,7 @@ impl VadePlugin for VadeEvan {
         options: &str,
         payload: &str,
     ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
-        if method != EVAN_METHOD {
-            return Ok(VadePluginResultValue::Ignored);
-        }
+        ignore_unrelated!(method, options);
         let options: AuthenticationOptions = parse!(&options, "options");
         let payload: CreateCredentialDefinitionPayload = parse!(&payload, "payload");
         let schema: CredentialSchema = get_document!(&mut self.vade, &payload.schema_did, "schema");
@@ -365,8 +469,6 @@ impl VadePlugin for VadeEvan {
             &payload.issuer_public_key_did,
             &payload.issuer_proving_key,
             &self.signer,
-            payload.p_safe.as_ref(),
-            payload.q_safe.as_ref(),
         )
         .await?;
 
@@ -390,8 +492,8 @@ impl VadePlugin for VadeEvan {
     /// # Arguments
     ///
     /// * `method` - method to create a credential schema for (e.g. "did:example")
-    /// * `options` - serialized [`AuthenticationOptions`](https://docs.rs/vade_evan/*/vade_evan/struct.AuthenticationOptions.html)
-    /// * `payload` - serialized [`CreateCredentialSchemaPayload`](https://docs.rs/vade_evan/*/vade_evan/struct.CreateCredentialSchemaPayload.html)
+    /// * `options` - serialized [`AuthenticationOptions`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.AuthenticationOptions.html)
+    /// * `payload` - serialized [`CreateCredentialSchemaPayload`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.CreateCredentialSchemaPayload.html)
     ///
     /// # Returns
     /// * `Option<String>` - The created schema as a JSON object
@@ -401,9 +503,7 @@ impl VadePlugin for VadeEvan {
         options: &str,
         payload: &str,
     ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
-        if method != EVAN_METHOD {
-            return Ok(VadePluginResultValue::Ignored);
-        }
+        ignore_unrelated!(method, options);
         let options: AuthenticationOptions = parse!(&options, "options");
         let payload: CreateCredentialSchemaPayload = parse!(&payload, "payload");
 
@@ -446,20 +546,18 @@ impl VadePlugin for VadeEvan {
     /// # Arguments
     ///
     /// * `method` - method to create a revocation registry definition for (e.g. "did:example")
-    /// * `options` - serialized [`AuthenticationOptions`](https://docs.rs/vade_evan/*/vade_evan/struct.AuthenticationOptions.html)
-    /// * `payload` - serialized [`CreateRevocationRegistryDefinitionPayload`](https://docs.rs/vade_evan/*/vade_evan/struct.CreateRevocationRegistryDefinitionPayload.html)
+    /// * `options` - serialized [`AuthenticationOptions`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.AuthenticationOptions.html)
+    /// * `payload` - serialized [`CreateRevocationRegistryDefinitionPayload`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.CreateRevocationRegistryDefinitionPayload.html)
     ///
     /// # Returns
-    /// * created revocation registry definition as a JSON object as serialized [`CreateRevocationRegistryDefinitionResult`](https://docs.rs/vade_evan/*/vade_evan/struct.CreateRevocationRegistryDefinitionResult.html)
+    /// * created revocation registry definition as a JSON object as serialized [`CreateRevocationRegistryDefinitionResult`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.CreateRevocationRegistryDefinitionResult.html)
     async fn vc_zkp_create_revocation_registry_definition(
         &mut self,
         method: &str,
         options: &str,
         payload: &str,
     ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
-        if method != EVAN_METHOD {
-            return Ok(VadePluginResultValue::Ignored);
-        }
+        ignore_unrelated!(method, options);
         let options: AuthenticationOptions = parse!(&options, "options");
         let payload: CreateRevocationRegistryDefinitionPayload = parse!(&payload, "payload");
         let definition: CredentialDefinition = get_document!(
@@ -508,21 +606,19 @@ impl VadePlugin for VadeEvan {
     /// # Arguments
     ///
     /// * `method` - method to issue a credential for (e.g. "did:example")
-    /// * `_options` - no authenticated request required, so can be left empty
-    /// * `payload` - serialized [`IssueCredentialPayload`](https://docs.rs/vade_evan/*/vade_evan/struct.IssueCredentialPayload.html)
+    /// * `options` - serialized [`TypeOptions`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.TypeOptions.html)
+    /// * `payload` - serialized [`IssueCredentialPayload`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.IssueCredentialPayload.html)
     ///
     /// # Returns
-    /// * serialized [`IssueCredentialResult`](https://docs.rs/vade_evan/*/vade_evan/struct.IssueCredentialResult.html) consisting of the credential, this credential's initial revocation state and
+    /// * serialized [`IssueCredentialResult`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.IssueCredentialResult.html) consisting of the credential, this credential's initial revocation state and
     /// the updated revocation info, only interesting for the issuer (needs to be stored privately)
     async fn vc_zkp_issue_credential(
         &mut self,
         method: &str,
-        _options: &str,
+        options: &str,
         payload: &str,
     ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
-        if method != EVAN_METHOD {
-            return Ok(VadePluginResultValue::Ignored);
-        }
+        ignore_unrelated!(method, options);
         let payload: IssueCredentialPayload = parse!(&payload, "payload");
         let definition: CredentialDefinition = get_document!(
             &mut self.vade,
@@ -536,12 +632,7 @@ impl VadePlugin for VadeEvan {
             "revocation definition"
         );
 
-        let schema_copy: CredentialSchema = serde_json::from_str(&serde_json::to_string(&schema)?)?;
-        let request_copy: CredentialRequest =
-            serde_json::from_str(&serde_json::to_string(&payload.credential_request)?)?;
-        let definition_copy: CredentialDefinition =
-            serde_json::from_str(&serde_json::to_string(&definition)?)?;
-        let (mut credential, revocation_state, revocation_info) = Issuer::issue_credential(
+        let (credential, revocation_state, revocation_info) = Issuer::issue_credential(
             &payload.issuer,
             &payload.subject,
             payload.credential_request,
@@ -554,23 +645,69 @@ impl VadePlugin for VadeEvan {
             payload.issuance_date,
         )?;
 
-        Prover::post_process_credential_signature(
-            &mut credential,
-            &schema_copy,
-            &request_copy,
-            &definition_copy,
-            payload.blinding_factors,
-            &payload.master_secret,
-            &revocation_definition,
-            &revocation_state.witness,
-        )?;
-
         Ok(VadePluginResultValue::Success(Some(serde_json::to_string(
             &IssueCredentialResult {
                 credential,
                 revocation_state,
                 revocation_info,
             },
+        )?)))
+    }
+
+    /// Finishes a credential, e.g. by incorporating the prover's master secret into the credential signature after issuance.
+    ///
+    /// # Arguments
+    ///
+    /// * `method` - method to update a finish credential for (e.g. "did:example")
+    /// * `options` - JSON string with additional information supporting the request (e.g. authentication data)
+    /// * `payload` - JSON string with information for the request (e.g. actual data to write)
+    ///
+    /// # Returns
+    /// * serialized [`Credential`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/application/datatypes/struct.Credential.html) consisting of the credential, this credential's initial revocation state and
+    /// the updated revocation info, only interesting for the issuer (needs to be stored privately)
+    async fn vc_zkp_finish_credential(
+        &mut self,
+        method: &str,
+        options: &str,
+        payload: &str,
+    ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn std::error::Error>> {
+        ignore_unrelated!(method, options);
+
+        // let options: AuthenticationOptions = parse!(&options, "options");
+        let payload: FinishCredentialPayload = parse!(&payload, "payload");
+        let FinishCredentialPayload {
+            mut credential,
+            credential_request,
+            credential_revocation_definition,
+            blinding_factors,
+            master_secret,
+            revocation_state,
+        } = payload;
+
+        let definition: CredentialDefinition = get_document!(
+            &mut self.vade,
+            &credential_request.credential_definition,
+            "credential definition"
+        );
+        let schema: CredentialSchema = get_document!(&mut self.vade, &definition.schema, "schema");
+        let revocation_definition: RevocationRegistryDefinition = get_document!(
+            &mut self.vade,
+            &credential_revocation_definition,
+            "revocation definition"
+        );
+
+        Prover::post_process_credential_signature(
+            &mut credential,
+            &schema,
+            &credential_request,
+            &definition,
+            blinding_factors,
+            &master_secret,
+            &revocation_definition,
+            &revocation_state.witness,
+        )?;
+        Ok(VadePluginResultValue::Success(Some(serde_json::to_string(
+            &credential,
         )?)))
     }
 
@@ -581,20 +718,18 @@ impl VadePlugin for VadeEvan {
     /// # Arguments
     ///
     /// * `method` - method to create a credential offer for (e.g. "did:example")
-    /// * `_options` - no authenticated request required, so can be left empty
-    /// * `payload` - serialized [`OfferCredentialPayload`](https://docs.rs/vade_evan/*/vade_evan/struct.OfferCredentialPayload.html)
+    /// * `options` - serialized [`TypeOptions`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.TypeOptions.html)
+    /// * `payload` - serialized [`OfferCredentialPayload`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.OfferCredentialPayload.html)
     ///
     /// # Returns
     /// * `Option<String>` - The offer as a JSON object
     async fn vc_zkp_create_credential_offer(
         &mut self,
         method: &str,
-        _options: &str,
+        options: &str,
         payload: &str,
     ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
-        if method != EVAN_METHOD {
-            return Ok(VadePluginResultValue::Ignored);
-        }
+        ignore_unrelated!(method, options);
         let payload: OfferCredentialPayload = parse!(&payload, "payload");
         let result: CredentialOffer = Issuer::offer_credential(
             &payload.issuer,
@@ -614,20 +749,18 @@ impl VadePlugin for VadeEvan {
     /// # Arguments
     ///
     /// * `method` - method to presents a proof for (e.g. "did:example")
-    /// * `_options` - no authenticated request required, so can be left empty
-    /// * `payload` - serialized [`PresentProofPayload`](https://docs.rs/vade_evan/*/vade_evan/struct.PresentProofPayload.html)
+    /// * `options` - serialized [`TypeOptions`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.TypeOptions.html)
+    /// * `payload` - serialized [`PresentProofPayload`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.PresentProofPayload.html)
     ///
     /// # Returns
-    /// * `Option<String>` - The offer as a JSON object
+    /// * `Option<String>` - The presentation as a JSON object
     async fn vc_zkp_present_proof(
         &mut self,
         method: &str,
-        _options: &str,
+        options: &str,
         payload: &str,
     ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
-        if method != EVAN_METHOD {
-            return Ok(VadePluginResultValue::Ignored);
-        }
+        ignore_unrelated!(method, options);
         let payload: PresentProofPayload = parse!(&payload, "payload");
 
         // Resolve all necessary credential definitions, schemas and registries
@@ -689,20 +822,18 @@ impl VadePlugin for VadeEvan {
     /// # Arguments
     ///
     /// * `method` - method to create a credential proposal for (e.g. "did:example")
-    /// * `_options` - no authenticated request required, so can be left empty
-    /// * `payload` - serialized [`CreateCredentialProposalPayload`](https://docs.rs/vade_evan/*/vade_evan/struct.CreateCredentialProposalPayload.html)
+    /// * `options` - serialized [`TypeOptions`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.TypeOptions.html)
+    /// * `payload` - serialized [`CreateCredentialProposalPayload`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.CreateCredentialProposalPayload.html)
     ///
     /// # Returns
     /// * `Option<String>` - The proposal as a JSON object
     async fn vc_zkp_create_credential_proposal(
         &mut self,
         method: &str,
-        _options: &str,
+        options: &str,
         payload: &str,
     ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
-        if method != EVAN_METHOD {
-            return Ok(VadePluginResultValue::Ignored);
-        }
+        ignore_unrelated!(method, options);
         let payload: CreateCredentialProposalPayload = parse!(&payload, "payload");
         let result: CredentialProposal =
             Prover::propose_credential(&payload.issuer, &payload.subject, &payload.schema);
@@ -720,20 +851,18 @@ impl VadePlugin for VadeEvan {
     /// # Arguments
     ///
     /// * `method` - method to request a credential for (e.g. "did:example")
-    /// * `_options` - no authenticated request required, so can be left empty
-    /// * `payload` - serialized [`RequestCredentialPayload`](https://docs.rs/vade_evan/*/vade_evan/struct.RequestCredentialPayload.html)
+    /// * `options` - serialized [`TypeOptions`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.TypeOptions.html)
+    /// * `payload` - serialized [`RequestCredentialPayload`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.RequestCredentialPayload.html)
     ///
     /// # Returns
     /// * `Option<String>` - A JSON object consisting of the `CredentialRequest` and `CredentialSecretsBlindingFactors` (to be stored at the proofer's site in a private manner)
     async fn vc_zkp_request_credential(
         &mut self,
         method: &str,
-        _options: &str,
+        options: &str,
         payload: &str,
     ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
-        if method != EVAN_METHOD {
-            return Ok(VadePluginResultValue::Ignored);
-        }
+        ignore_unrelated!(method, options);
         let payload: RequestCredentialPayload = serde_json::from_str(&payload)
             .map_err(|e| format!("{} when parsing payload {}", &e, &payload))?;
         let definition: CredentialDefinition = get_document!(
@@ -764,20 +893,18 @@ impl VadePlugin for VadeEvan {
     /// # Arguments
     ///
     /// * `method` - method to request a proof for (e.g. "did:example")
-    /// * `_options` - no authenticated request required, so can be left empty
-    /// * `payload` - serialized [`RequestProofPayload`](https://docs.rs/vade_evan/*/vade_evan/struct.RequestProofPayload.html)
+    /// * `options` - serialized [`TypeOptions`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.TypeOptions.html)
+    /// * `payload` - serialized [`RequestProofPayload`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.RequestProofPayload.html)
     ///
     /// # Returns
     /// * `Option<String>` - A `ProofRequest` as JSON
     async fn vc_zkp_request_proof(
         &mut self,
         method: &str,
-        _options: &str,
+        options: &str,
         payload: &str,
     ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
-        if method != EVAN_METHOD {
-            return Ok(VadePluginResultValue::Ignored);
-        }
+        ignore_unrelated!(method, options);
         let payload: RequestProofPayload = parse!(&payload, "payload");
         let result: ProofRequest = Verifier::request_proof(
             &payload.verifier_did,
@@ -800,8 +927,8 @@ impl VadePlugin for VadeEvan {
     /// # Arguments
     ///
     /// * `method` - method to revoke a credential for (e.g. "did:example")
-    /// * `options` - serialized [`AuthenticationOptions`](https://docs.rs/vade_evan/*/vade_evan/struct.AuthenticationOptions.html)
-    /// * `payload` - serialized [`RevokeCredentialPayload`](https://docs.rs/vade_evan/*/vade_evan/struct.RevokeCredentialPayload.html)
+    /// * `options` - serialized [`AuthenticationOptions`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.AuthenticationOptions.html)
+    /// * `payload` - serialized [`RevokeCredentialPayload`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.RevokeCredentialPayload.html)
     ///
     /// # Returns
     /// * `Option<String>` - The updated revocation registry definition as a JSON object. Contains information
@@ -812,9 +939,7 @@ impl VadePlugin for VadeEvan {
         options: &str,
         payload: &str,
     ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
-        if method != EVAN_METHOD {
-            return Ok(VadePluginResultValue::Ignored);
-        }
+        ignore_unrelated!(method, options);
         let options: AuthenticationOptions = parse!(&options, "options");
         let payload: RevokeCredentialPayload = parse!(&payload, "payload");
         let rev_def: RevocationRegistryDefinition = get_document!(
@@ -851,20 +976,18 @@ impl VadePlugin for VadeEvan {
     /// # Arguments
     ///
     /// * `method` - method to verify a proof for (e.g. "did:example")
-    /// * `_options` - no authenticated request required, so can be left empty
-    /// * `payload` - serialized [`ValidateProofPayload`](https://docs.rs/vade_evan/*/vade_evan/struct.ValidateProofPayload.html)
+    /// * `options` - serialized [`TypeOptions`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.TypeOptions.html)
+    /// * `payload` - serialized [`ValidateProofPayload`](https://docs.rs/vade_evan_cl/*/vade_evan_cl/struct.ValidateProofPayload.html)
     ///
     /// # Returns
     /// * `Option<String>` - A JSON object representing a `ProofVerification` type, specifying whether verification was successful
     async fn vc_zkp_verify_proof(
         &mut self,
         method: &str,
-        _options: &str,
+        options: &str,
         payload: &str,
     ) -> Result<VadePluginResultValue<Option<String>>, Box<dyn Error>> {
-        if method != EVAN_METHOD {
-            return Ok(VadePluginResultValue::Ignored);
-        }
+        ignore_unrelated!(method, options);
         let payload: ValidateProofPayload = parse!(&payload, "payload");
 
         // Resolve all necessary credential definitions, schemas and registries

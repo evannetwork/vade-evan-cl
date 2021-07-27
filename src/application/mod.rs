@@ -17,6 +17,6 @@
 extern crate ursa;
 
 pub mod datatypes;
-pub mod issuer;
+pub(crate) mod issuer;
 pub mod prover;
-pub mod verifier;
+pub(crate) mod verifier;

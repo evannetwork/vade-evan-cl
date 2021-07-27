@@ -13,13 +13,14 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 */
-
-mod test_data;
+extern crate utilities;
 
 use regex::Regex;
 use serde_json::Value;
 use std::{collections::HashMap, env, error::Error};
-use test_data::{
+use ursa::bn::BigNumber;
+use ursa::cl::{CredentialSecretsBlindingFactors, Witness};
+use utilities::test_data::{
     accounts::local::{
         ISSUER_DID,
         ISSUER_PRIVATE_KEY,
@@ -40,10 +41,8 @@ use test_data::{
         SUBJECT_DID,
     },
 };
-use ursa::bn::BigNumber;
-use ursa::cl::{CredentialSecretsBlindingFactors, Witness};
 use vade::Vade;
-use vade_evan::{
+use vade_evan_cl::{
     application::{
         datatypes::{
             Credential,
@@ -64,14 +63,18 @@ use vade_evan::{
         },
         prover::Prover,
     },
-    resolver::{ResolverConfig, SubstrateDidResolverEvan},
-    signing::{LocalSigner, Signer},
     CreateRevocationRegistryDefinitionResult,
     IssueCredentialResult,
-    VadeEvan,
+    VadeEvanCl,
+};
+use vade_evan_substrate::{
+    signing::{LocalSigner, Signer},
+    ResolverConfig,
+    VadeEvanSubstrate,
 };
 
 const EVAN_METHOD: &str = "did:evan";
+const TYPE_OPTIONS: &str = r#"{ "type": "cl" }"#;
 
 // TODO: Test multi-proof presentations
 // TODO: Test revocation
@@ -84,7 +87,7 @@ async fn can_be_registered_as_plugin() -> Result<(), Box<dyn Error>> {
 
     // run test
     let results = vade
-        .vc_zkp_create_credential_proposal(EVAN_METHOD, "", "")
+        .vc_zkp_create_credential_proposal(EVAN_METHOD, TYPE_OPTIONS, "")
         .await;
 
     // check results
@@ -170,7 +173,7 @@ async fn can_request_credentials() -> Result<(), Box<dyn Error>> {
     let (definition, _) = create_credential_definition(&mut vade, &schema).await?;
     let proposal: CredentialProposal = create_credential_proposal(&mut vade, &schema).await?;
     let offer: CredentialOffer = create_credential_offer(&mut vade, &proposal, &definition).await?;
-    let master_secret = ursa::cl::prover::Prover::new_master_secret().unwrap();
+    let master_secret = create_master_secret(&mut vade).await?;
 
     // run test
     let (result, _) = create_credential_request(&mut vade, &schema, &offer, &master_secret).await?;
@@ -197,8 +200,8 @@ async fn can_issue_credentials() -> Result<(), Box<dyn Error>> {
 
     let offer: CredentialOffer = create_credential_offer(&mut vade, &proposal, &definition).await?;
 
-    let master_secret = ursa::cl::prover::Prover::new_master_secret().unwrap();
-    let (request, blinding_factors) =
+    let master_secret = create_master_secret(&mut vade).await?;
+    let (request, _blinding_factors) =
         create_credential_request(&mut vade, &schema, &offer, &master_secret).await?;
 
     let rev_reg_def: CreateRevocationRegistryDefinitionResult =
@@ -213,8 +216,6 @@ async fn can_issue_credentials() -> Result<(), Box<dyn Error>> {
         &rev_reg_def.private_key,
         &rev_reg_def.revocation_info,
         &rev_reg_def.revocation_registry_definition,
-        &blinding_factors,
-        &master_secret,
         None,
     )
     .await?;
@@ -239,7 +240,7 @@ async fn can_issue_credentials_with_issued_at() -> Result<(), Box<dyn Error>> {
     let offer: CredentialOffer = create_credential_offer(&mut vade, &proposal, &definition).await?;
 
     let master_secret = ursa::cl::prover::Prover::new_master_secret().unwrap();
-    let (request, blinding_factors) =
+    let (request, _blinding_factors) =
         create_credential_request(&mut vade, &schema, &offer, &master_secret).await?;
 
     let rev_reg_def: CreateRevocationRegistryDefinitionResult =
@@ -256,8 +257,6 @@ async fn can_issue_credentials_with_issued_at() -> Result<(), Box<dyn Error>> {
         &rev_reg_def.private_key,
         &rev_reg_def.revocation_info,
         &rev_reg_def.revocation_registry_definition,
-        &blinding_factors,
-        &master_secret,
         Some(issuance_date.to_string()),
     )
     .await?;
@@ -265,6 +264,67 @@ async fn can_issue_credentials_with_issued_at() -> Result<(), Box<dyn Error>> {
     // check results
     assert_eq!(result.issuer, ISSUER_DID);
     assert_eq!(result.issuance_date, issuance_date);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn can_finish_credentials() -> Result<(), Box<dyn Error>> {
+    let mut vade = get_vade();
+
+    let schema: CredentialSchema = create_credential_schema(&mut vade).await?;
+    let (definition, credential_private_key) =
+        create_credential_definition(&mut vade, &schema).await?;
+    let proposal: CredentialProposal = create_credential_proposal(&mut vade, &schema).await?;
+    let offer: CredentialOffer = create_credential_offer(&mut vade, &proposal, &definition).await?;
+    let master_secret = create_master_secret(&mut vade).await?;
+    let (request, blinding_factors) =
+        create_credential_request(&mut vade, &schema, &offer, &master_secret).await?;
+
+    let rev_reg_def: CreateRevocationRegistryDefinitionResult =
+        create_revocation_registry_definition(&mut vade, &definition, 42).await?;
+
+    let (credential, revocation_state, _): (Credential, RevocationState, _) = issue_credential(
+        &mut vade,
+        &definition,
+        &credential_private_key,
+        &request,
+        &rev_reg_def.private_key,
+        &rev_reg_def.revocation_info,
+        &rev_reg_def.revocation_registry_definition,
+        None,
+    )
+    .await?;
+
+    // run test
+    let finished_credential: Credential = finish_credential(
+        &mut vade,
+        &credential,
+        &request,
+        &rev_reg_def.revocation_registry_definition.id,
+        &blinding_factors,
+        &master_secret,
+        &revocation_state,
+    )
+    .await?;
+
+    // only proof should have been updated
+    assert_eq!(&finished_credential.context, &credential.context);
+    assert_eq!(&finished_credential.id, &credential.id);
+    assert_eq!(&finished_credential.r#type, &credential.r#type);
+    assert_eq!(&finished_credential.issuer, &credential.issuer);
+    assert_eq!(
+        serde_json::to_string(&finished_credential.credential_subject)?,
+        serde_json::to_string(&credential.credential_subject)?,
+    );
+    assert_eq!(
+        serde_json::to_string(&finished_credential.credential_schema)?,
+        serde_json::to_string(&credential.credential_schema)?,
+    );
+    assert_ne!(
+        serde_json::to_string(&finished_credential.proof)?,
+        serde_json::to_string(&credential.proof)?,
+    );
 
     Ok(())
 }
@@ -302,7 +362,7 @@ async fn can_present_proofs() -> Result<(), Box<dyn Error>> {
     let proof_request: ProofRequest = request_proof(&mut vade, &schema).await?;
     let proposal: CredentialProposal = create_credential_proposal(&mut vade, &schema).await?;
     let offer: CredentialOffer = create_credential_offer(&mut vade, &proposal, &definition).await?;
-    let master_secret = ursa::cl::prover::Prover::new_master_secret().unwrap();
+    let master_secret = create_master_secret(&mut vade).await?;
     let (request, blinding_factors) =
         create_credential_request(&mut vade, &schema, &offer, &master_secret).await?;
 
@@ -317,22 +377,20 @@ async fn can_present_proofs() -> Result<(), Box<dyn Error>> {
         &rev_reg_def.private_key,
         &rev_reg_def.revocation_info,
         &rev_reg_def.revocation_registry_definition,
-        &blinding_factors,
-        &master_secret,
         None,
     )
     .await?;
 
-    // Prover::post_process_credential_signature(
-    //     &mut credential,
-    //     &schema,
-    //     &request,
-    //     &definition,
-    //     blinding_factors,
-    //     &master_secret,
-    //     &rev_reg_def.revocation_registry_definition,
-    //     &revocation_state.witness,
-    // )?;
+    let credential: Credential = finish_credential(
+        &mut vade,
+        &credential,
+        &request,
+        &rev_reg_def.revocation_registry_definition.id,
+        &blinding_factors,
+        &master_secret,
+        &revocation_state,
+    )
+    .await?;
 
     // run test
     let result: ProofPresentation = present_proof(
@@ -362,7 +420,7 @@ async fn can_present_proofs_with_less_properties() -> Result<(), Box<dyn Error>>
     let proof_request: ProofRequest = request_proof(&mut vade, &schema).await?;
     let proposal: CredentialProposal = create_credential_proposal(&mut vade, &schema).await?;
     let offer: CredentialOffer = create_credential_offer(&mut vade, &proposal, &definition).await?;
-    let master_secret = ursa::cl::prover::Prover::new_master_secret().unwrap();
+    let master_secret = create_master_secret(&mut vade).await?;
     let (request, blinding_factors) =
         create_two_property_credential_request(&mut vade, &schema, &offer, &master_secret).await?;
 
@@ -377,22 +435,20 @@ async fn can_present_proofs_with_less_properties() -> Result<(), Box<dyn Error>>
         &rev_reg_def.private_key,
         &rev_reg_def.revocation_info,
         &rev_reg_def.revocation_registry_definition,
-        &blinding_factors,
-        &master_secret,
         None,
     )
     .await?;
 
-    // Prover::post_process_credential_signature(
-    //     &mut credential,
-    //     &schema,
-    //     &request,
-    //     &definition,
-    //     blinding_factors,
-    //     &master_secret,
-    //     &rev_reg_def.revocation_registry_definition,
-    //     &revocation_state.witness,
-    // )?;
+    let credential: Credential = finish_credential(
+        &mut vade,
+        &credential,
+        &request,
+        &rev_reg_def.revocation_registry_definition.id,
+        &blinding_factors,
+        &master_secret,
+        &revocation_state,
+    )
+    .await?;
 
     // run test
     let result: ProofPresentation = present_proof(
@@ -423,7 +479,7 @@ async fn can_present_proofs_with_selective_revealed_attributes_and_omitted_optio
     let proof_request: ProofRequest = request_proof(&mut vade, &schema).await?;
     let proposal: CredentialProposal = create_credential_proposal(&mut vade, &schema).await?;
     let offer: CredentialOffer = create_credential_offer(&mut vade, &proposal, &definition).await?;
-    let master_secret = ursa::cl::prover::Prover::new_master_secret().unwrap();
+    let master_secret = create_master_secret(&mut vade).await?;
     let (request, blinding_factors) =
         create_two_property_credential_request(&mut vade, &schema, &offer, &master_secret).await?;
 
@@ -438,22 +494,20 @@ async fn can_present_proofs_with_selective_revealed_attributes_and_omitted_optio
         &rev_reg_def.private_key,
         &rev_reg_def.revocation_info,
         &rev_reg_def.revocation_registry_definition,
-        &blinding_factors,
-        &master_secret,
         None,
     )
     .await?;
 
-    // Prover::post_process_credential_signature(
-    //     &mut credential,
-    //     &schema,
-    //     &request,
-    //     &definition,
-    //     blinding_factors,
-    //     &master_secret,
-    //     &rev_reg_def.revocation_registry_definition,
-    //     &revocation_state.witness,
-    // )?;
+    let credential: Credential = finish_credential(
+        &mut vade,
+        &credential,
+        &request,
+        &rev_reg_def.revocation_registry_definition.id,
+        &blinding_factors,
+        &master_secret,
+        &revocation_state,
+    )
+    .await?;
 
     // run test
     let presented_proof: ProofPresentation = present_proof(
@@ -489,7 +543,7 @@ async fn cannot_request_credential_with_missing_required_properties() -> Result<
     request_proof(&mut vade, &schema).await?;
     let proposal: CredentialProposal = create_credential_proposal(&mut vade, &schema).await?;
     let offer: CredentialOffer = create_credential_offer(&mut vade, &proposal, &definition).await?;
-    let master_secret = ursa::cl::prover::Prover::new_master_secret().unwrap();
+    let master_secret = create_master_secret(&mut vade).await?;
 
     match create_credential_request_with_missing_required_property(
         &mut vade,
@@ -517,7 +571,7 @@ async fn can_verify_proof() -> Result<(), Box<dyn Error>> {
     let (definition, credential_private_key) =
         create_credential_definition(&mut vade, &schema).await?;
     let proof_request: ProofRequest = request_proof(&mut vade, &schema).await?;
-    let master_secret = ursa::cl::prover::Prover::new_master_secret().unwrap();
+    let master_secret = create_master_secret(&mut vade).await?;
     let proposal: CredentialProposal = create_credential_proposal(&mut vade, &schema).await?;
     let offer: CredentialOffer = create_credential_offer(&mut vade, &proposal, &definition).await?;
     let (request, blinding_factors) =
@@ -535,22 +589,20 @@ async fn can_verify_proof() -> Result<(), Box<dyn Error>> {
         &rev_reg_def.private_key,
         &rev_reg_def.revocation_info,
         &rev_reg_def.revocation_registry_definition,
-        &blinding_factors,
-        &master_secret,
         None,
     )
     .await?;
 
-    // Prover::post_process_credential_signature(
-    //     &mut credential,
-    //     &schema,
-    //     &request,
-    //     &definition,
-    //     blinding_factors,
-    //     &master_secret,
-    //     &rev_reg_def.revocation_registry_definition,
-    //     &revocation_state.witness,
-    // )?;
+    let credential: Credential = finish_credential(
+        &mut vade,
+        &credential,
+        &request,
+        &rev_reg_def.revocation_registry_definition.id,
+        &blinding_factors,
+        &master_secret,
+        &revocation_state,
+    )
+    .await?;
 
     let presented_proof: ProofPresentation = present_proof(
         &mut vade,
@@ -579,7 +631,7 @@ async fn can_revoke_credential() -> Result<(), Box<dyn Error>> {
     let schema: CredentialSchema = create_credential_schema(&mut vade).await?;
     let (definition, credential_private_key) =
         create_credential_definition(&mut vade, &schema).await?;
-    let master_secret = ursa::cl::prover::Prover::new_master_secret().unwrap();
+    let master_secret = create_master_secret(&mut vade).await?;
 
     let proof_request: ProofRequest = request_proof(&mut vade, &schema).await?;
 
@@ -603,22 +655,20 @@ async fn can_revoke_credential() -> Result<(), Box<dyn Error>> {
         &revocation_key_private,
         &revocation_info,
         &revocation_registry_definition,
-        &blinding_factors,
-        &master_secret,
         None,
     )
     .await?;
 
-    // Prover::post_process_credential_signature(
-    //     &mut credential,
-    //     &schema,
-    //     &request,
-    //     &definition,
-    //     blinding_factors,
-    //     &master_secret,
-    //     &revocation_registry_definition,
-    //     &revocation_state.witness,
-    // )?;
+    let credential: Credential = finish_credential(
+        &mut vade,
+        &credential,
+        &request,
+        &revocation_registry_definition.id,
+        &blinding_factors,
+        &master_secret,
+        &revocation_state,
+    )
+    .await?;
 
     let updated_registry =
         revoke_credential(&mut vade, &credential, &revocation_registry_definition).await?;
@@ -653,7 +703,7 @@ async fn can_verify_proof_after_revocation_update() -> Result<(), Box<dyn Error>
     let schema: CredentialSchema = create_credential_schema(&mut vade).await?;
     let (definition, credential_private_key) =
         create_credential_definition(&mut vade, &schema).await?;
-    let master_secret = ursa::cl::prover::Prover::new_master_secret().unwrap();
+    let master_secret = create_master_secret(&mut vade).await?;
 
     let proof_request: ProofRequest = request_proof(&mut vade, &schema).await?;
 
@@ -681,22 +731,20 @@ async fn can_verify_proof_after_revocation_update() -> Result<(), Box<dyn Error>
         &revocation_key_private,
         &revocation_info,
         &revocation_registry_definition,
-        &blinding_factors,
-        &master_secret,
         None,
     )
     .await?;
 
-    // Prover::post_process_credential_signature(
-    //     &mut credential,
-    //     &schema,
-    //     &request,
-    //     &definition,
-    //     blinding_factors,
-    //     &master_secret,
-    //     &revocation_registry_definition,
-    //     &revocation_state.witness,
-    // )?;
+    let credential: Credential = finish_credential(
+        &mut vade,
+        &credential,
+        &request,
+        &revocation_registry_definition.id,
+        &blinding_factors,
+        &master_secret,
+        &revocation_state,
+    )
+    .await?;
 
     // Issue different credential & revoke it
     let other_proposal: CredentialProposal = create_credential_proposal(&mut vade, &schema).await?;
@@ -705,7 +753,7 @@ async fn can_verify_proof_after_revocation_update() -> Result<(), Box<dyn Error>
     let (other_request, other_blinding_factors) =
         create_credential_request(&mut vade, &schema, &other_offer, &master_secret).await?;
 
-    let (other_credential, _other_revocation_state, _): (
+    let (other_credential, other_revocation_state, _): (
         Credential,
         RevocationState,
         RevocationIdInformation,
@@ -717,22 +765,20 @@ async fn can_verify_proof_after_revocation_update() -> Result<(), Box<dyn Error>
         &revocation_key_private,
         &revocation_info,
         &revocation_registry_definition,
-        &other_blinding_factors,
-        &master_secret,
         None,
     )
     .await?;
 
-    // Prover::post_process_credential_signature(
-    //     &mut other_credential,
-    //     &schema,
-    //     &other_request,
-    //     &definition,
-    //     other_blinding_factors,
-    //     &master_secret,
-    //     &revocation_registry_definition,
-    //     &other_revocation_state.witness,
-    // )?;
+    let other_credential: Credential = finish_credential(
+        &mut vade,
+        &other_credential,
+        &other_request,
+        &revocation_registry_definition.id,
+        &other_blinding_factors,
+        &master_secret,
+        &other_revocation_state,
+    )
+    .await?;
 
     let updated_registry = revoke_credential(
         &mut vade,
@@ -773,7 +819,7 @@ async fn can_verify_proof_after_multiple_revocation_updates() -> Result<(), Box<
     let schema: CredentialSchema = create_credential_schema(&mut vade).await?;
     let (definition, credential_private_key) =
         create_credential_definition(&mut vade, &schema).await?;
-    let master_secret = ursa::cl::prover::Prover::new_master_secret().unwrap();
+    let master_secret = create_master_secret(&mut vade).await?;
 
     let proof_request: ProofRequest = request_proof(&mut vade, &schema).await?;
 
@@ -789,7 +835,7 @@ async fn can_verify_proof_after_multiple_revocation_updates() -> Result<(), Box<
     let revocation_key_private = rev_result.private_key;
     let revocation_info = rev_result.revocation_info;
 
-    let (credential, _revocation_state, revocation_info): (
+    let (credential, revocation_state, revocation_info): (
         Credential,
         RevocationState,
         RevocationIdInformation,
@@ -801,22 +847,20 @@ async fn can_verify_proof_after_multiple_revocation_updates() -> Result<(), Box<
         &revocation_key_private,
         &revocation_info,
         &revocation_registry_definition,
-        &blinding_factors,
-        &master_secret,
         None,
     )
     .await?;
 
-    // Prover::post_process_credential_signature(
-    //     &mut credential,
-    //     &schema,
-    //     &request,
-    //     &definition,
-    //     blinding_factors,
-    //     &master_secret,
-    //     &revocation_registry_definition,
-    //     &revocation_state.witness,
-    // )?;
+    let credential: Credential = finish_credential(
+        &mut vade,
+        &credential,
+        &request,
+        &revocation_registry_definition.id,
+        &blinding_factors,
+        &master_secret,
+        &revocation_state,
+    )
+    .await?;
 
     let updated_registry =
         revoke_credential(&mut vade, &credential, &revocation_registry_definition).await?;
@@ -825,7 +869,7 @@ async fn can_verify_proof_after_multiple_revocation_updates() -> Result<(), Box<
     let other_proposal: CredentialProposal = create_credential_proposal(&mut vade, &schema).await?;
     let other_offer: CredentialOffer =
         create_credential_offer(&mut vade, &other_proposal, &definition).await?;
-    let (other_request, other_blinding_factors) =
+    let (other_request, _other_blinding_factors) =
         create_credential_request(&mut vade, &schema, &other_offer, &master_secret).await?;
 
     let (other_credential, other_revocation_state, revocation_info): (
@@ -840,31 +884,29 @@ async fn can_verify_proof_after_multiple_revocation_updates() -> Result<(), Box<
         &revocation_key_private,
         &revocation_info,
         &updated_registry,
-        &other_blinding_factors,
-        &master_secret,
         None,
     )
     .await?;
 
-    // Prover::post_process_credential_signature(
-    //     &mut other_credential,
-    //     &schema,
-    //     &other_request,
-    //     &definition,
-    //     other_blinding_factors,
-    //     &master_secret,
-    //     &updated_registry,
-    //     &other_revocation_state.witness,
-    // )?;
+    let other_credential: Credential = finish_credential(
+        &mut vade,
+        &other_credential,
+        &request,
+        &updated_registry.id,
+        &blinding_factors,
+        &master_secret,
+        &other_revocation_state,
+    )
+    .await?;
 
     // Issue third credential & revoke it
     let third_proposal: CredentialProposal = create_credential_proposal(&mut vade, &schema).await?;
     let third_offer: CredentialOffer =
         create_credential_offer(&mut vade, &third_proposal, &definition).await?;
-    let (third_request, third_blinding_factors) =
+    let (third_request, _third_blinding_factors) =
         create_credential_request(&mut vade, &schema, &third_offer, &master_secret).await?;
 
-    let (third_credential, _third_revocation_state, _): (
+    let (third_credential, third_revocation_state, _): (
         Credential,
         RevocationState,
         RevocationIdInformation,
@@ -876,22 +918,20 @@ async fn can_verify_proof_after_multiple_revocation_updates() -> Result<(), Box<
         &revocation_key_private,
         &revocation_info,
         &updated_registry,
-        &third_blinding_factors,
-        &master_secret,
         None,
     )
     .await?;
 
-    // Prover::post_process_credential_signature(
-    //     &mut third_credential,
-    //     &schema,
-    //     &third_request,
-    //     &definition,
-    //     third_blinding_factors,
-    //     &master_secret,
-    //     &updated_registry,
-    //     &third_revocation_state.witness,
-    // )?;
+    let third_credential: Credential = finish_credential(
+        &mut vade,
+        &third_credential,
+        &request,
+        &updated_registry.id,
+        &blinding_factors,
+        &master_secret,
+        &third_revocation_state,
+    )
+    .await?;
 
     let updated_registry =
         revoke_credential(&mut vade, &third_credential, &updated_registry).await?;
@@ -927,7 +967,7 @@ async fn can_create_safe_primes() -> Result<(), Box<dyn Error>> {
     let mut vade = get_vade();
 
     let results = vade
-        .run_custom_function(EVAN_METHOD, "generate_safe_prime", "", "")
+        .run_custom_function(EVAN_METHOD, "generate_safe_prime", TYPE_OPTIONS, "")
         .await?;
 
     assert_eq!(results.len(), 1);
@@ -973,7 +1013,7 @@ async fn create_credential_offer(
     let payload = serde_json::to_string(&message_value).unwrap();
 
     let results = vade
-        .vc_zkp_create_credential_offer(EVAN_METHOD, "", &payload)
+        .vc_zkp_create_credential_offer(EVAN_METHOD, TYPE_OPTIONS, &payload)
         .await?;
 
     // check results
@@ -996,7 +1036,7 @@ async fn create_credential_proposal(
         ISSUER_DID, SUBJECT_DID, schema.id
     );
     let results = vade
-        .vc_zkp_create_credential_proposal(EVAN_METHOD, "", &payload)
+        .vc_zkp_create_credential_proposal(EVAN_METHOD, TYPE_OPTIONS, &payload)
         .await?;
 
     // check results
@@ -1027,7 +1067,7 @@ async fn create_credential_request(
         serde_json::to_string(&master_secret).unwrap()
     );
     let results = vade
-        .vc_zkp_request_credential(EVAN_METHOD, "", &payload)
+        .vc_zkp_request_credential(EVAN_METHOD, TYPE_OPTIONS, &payload)
         .await?;
 
     // check results
@@ -1059,7 +1099,7 @@ async fn create_two_property_credential_request(
         serde_json::to_string(&master_secret).unwrap()
     );
     let results = vade
-        .vc_zkp_request_credential(EVAN_METHOD, "", &payload)
+        .vc_zkp_request_credential(EVAN_METHOD, TYPE_OPTIONS, &payload)
         .await?;
 
     // check results
@@ -1090,7 +1130,7 @@ async fn create_credential_request_with_missing_required_property(
         serde_json::to_string(&master_secret).unwrap()
     );
     let results = vade
-        .vc_zkp_request_credential(EVAN_METHOD, "", &payload)
+        .vc_zkp_request_credential(EVAN_METHOD, TYPE_OPTIONS, &payload)
         .await?;
 
     // check results
@@ -1163,6 +1203,7 @@ async fn create_revocation_registry_definition(
 fn get_options() -> String {
     format!(
         r###"{{
+            "type": "cl",
             "privateKey": "{}",
             "identity": "{}"
         }}"###,
@@ -1170,9 +1211,9 @@ fn get_options() -> String {
     )
 }
 
-fn get_resolver() -> SubstrateDidResolverEvan {
+fn get_resolver() -> VadeEvanSubstrate {
     let signer: Box<dyn Signer> = Box::new(LocalSigner::new());
-    SubstrateDidResolverEvan::new(ResolverConfig {
+    VadeEvanSubstrate::new(ResolverConfig {
         signer,
         target: env::var("VADE_EVAN_SUBSTRATE_IP")
             .unwrap_or_else(|_| DEFAULT_VADE_EVAN_SUBSTRATE_IP.to_string()),
@@ -1187,14 +1228,14 @@ fn get_vade() -> Vade {
     vade
 }
 
-fn get_vade_evan() -> VadeEvan {
+fn get_vade_evan() -> VadeEvanCl {
     // vade to work with
     let substrate_resolver = get_resolver();
     let mut internal_vade = Vade::new();
     internal_vade.register_plugin(Box::from(substrate_resolver));
 
     let signer: Box<dyn Signer> = Box::new(LocalSigner::new());
-    VadeEvan::new(internal_vade, signer)
+    VadeEvanCl::new(internal_vade, signer)
 }
 
 async fn issue_credential(
@@ -1205,8 +1246,6 @@ async fn issue_credential(
     revocation_key_private: &RevocationKeyPrivate,
     revocation_info: &RevocationIdInformation,
     revocation_definition: &RevocationRegistryDefinition,
-    blinding_factors: &CredentialSecretsBlindingFactors,
-    master_secret: &MasterSecret,
     issuance_date: Option<String>,
 ) -> Result<(Credential, RevocationState, RevocationIdInformation), Box<dyn Error>> {
     let payload = format!(
@@ -1219,8 +1258,6 @@ async fn issue_credential(
             "credentialRevocationDefinition": "{}",
             "revocationPrivateKey": {},
             "revocationInformation": {},
-            "blindingFactors": {},
-            "masterSecret": {},
             "issuanceDate": {}
         }}"###,
         ISSUER_DID,
@@ -1231,12 +1268,10 @@ async fn issue_credential(
         &revocation_definition.id,
         serde_json::to_string(&revocation_key_private).unwrap(),
         serde_json::to_string(&revocation_info).unwrap(),
-        serde_json::to_string(&blinding_factors).unwrap(),
-        serde_json::to_string(&master_secret).unwrap(),
         serde_json::to_string(&issuance_date).unwrap(),
     );
     let results = vade
-        .vc_zkp_issue_credential(EVAN_METHOD, "", &payload)
+        .vc_zkp_issue_credential(EVAN_METHOD, TYPE_OPTIONS, &payload)
         .await?;
 
     // check results
@@ -1250,6 +1285,42 @@ async fn issue_credential(
         result.revocation_state,
         result.revocation_info,
     ))
+}
+
+async fn finish_credential(
+    vade: &mut Vade,
+    credential: &Credential,
+    credential_request: &CredentialRequest,
+    credential_revocation_definition: &String,
+    blinding_factors: &CredentialSecretsBlindingFactors,
+    master_secret: &MasterSecret,
+    revocation_state: &RevocationState,
+) -> Result<Credential, Box<dyn Error>> {
+    let payload = format!(
+        r###"{{
+            "credential": {},
+            "credentialRequest": {},
+            "credentialRevocationDefinition": "{}",
+            "blindingFactors": {},
+            "masterSecret": {},
+            "revocationState": {}
+        }}"###,
+        serde_json::to_string(credential)?,
+        serde_json::to_string(credential_request)?,
+        credential_revocation_definition,
+        serde_json::to_string(blinding_factors)?,
+        serde_json::to_string(master_secret)?,
+        serde_json::to_string(revocation_state)?,
+    );
+    let results = vade
+        .vc_zkp_finish_credential(EVAN_METHOD, TYPE_OPTIONS, &payload)
+        .await?;
+
+    // check results
+    assert_eq!(results.len(), 1);
+    let result: Credential = serde_json::from_str(results[0].as_ref().unwrap()).unwrap();
+
+    Ok(result)
 }
 
 async fn request_proof(
@@ -1267,7 +1338,9 @@ async fn request_proof(
         }}"###,
         ISSUER_DID, SUBJECT_DID, schema.id,
     );
-    let results = vade.vc_zkp_request_proof(EVAN_METHOD, "", &payload).await?;
+    let results = vade
+        .vc_zkp_request_proof(EVAN_METHOD, TYPE_OPTIONS, &payload)
+        .await?;
 
     // check results
     assert_eq!(results.len(), 1);
@@ -1336,7 +1409,9 @@ async fn present_proof(
         serde_json::to_string(&witnesses).unwrap(),
         serde_json::to_string(&master_secret).unwrap(),
     );
-    let results = vade.vc_zkp_present_proof(EVAN_METHOD, "", &payload).await?;
+    let results = vade
+        .vc_zkp_present_proof(EVAN_METHOD, TYPE_OPTIONS, &payload)
+        .await?;
 
     // check results
     assert_eq!(results.len(), 1);
@@ -1358,7 +1433,9 @@ async fn verify_proof(
         serde_json::to_string(presented_proof).unwrap(),
         serde_json::to_string(proof_request).unwrap()
     );
-    let results = vade.vc_zkp_verify_proof(EVAN_METHOD, "", &payload).await?;
+    let results = vade
+        .vc_zkp_verify_proof(EVAN_METHOD, TYPE_OPTIONS, &payload)
+        .await?;
 
     // check results
     assert_eq!(results.len(), 1);
@@ -1487,4 +1564,12 @@ async fn create_three_property_credential_request(
 
     let result: CredentialSchema = serde_json::from_str(results[0].as_ref().unwrap()).unwrap();
     Ok(result)
+}
+
+async fn create_master_secret(vade: &mut Vade) -> Result<MasterSecret, Box<dyn Error>> {
+    let results = vade
+        .run_custom_function(EVAN_METHOD, "create_master_secret", TYPE_OPTIONS, "")
+        .await?;
+
+    Ok(serde_json::from_str(&results[0].as_ref().unwrap()).unwrap())
 }

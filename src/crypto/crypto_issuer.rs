@@ -19,22 +19,18 @@ use crate::{
     crypto::crypto_datatypes::{CryptoCredentialDefinition, CryptoRevocationRegistryDefinition},
 };
 use std::{collections::HashSet, error::Error};
-use ursa::{
-    bn::BigNumber,
-    cl::{
-        issuer::Issuer as CryptoIssuer,
-        new_nonce,
-        CredentialPrivateKey,
-        CredentialPublicKey,
-        CredentialSignature,
-        Nonce,
-        RevocationKeyPrivate,
-        RevocationRegistry,
-        RevocationRegistryDelta,
-        SignatureCorrectnessProof,
-        SimpleTailsAccessor,
-        Witness,
-    },
+use ursa::cl::{
+    issuer::Issuer as CryptoIssuer,
+    new_nonce,
+    CredentialPrivateKey,
+    CredentialPublicKey,
+    CredentialSignature,
+    Nonce,
+    RevocationKeyPrivate,
+    RevocationRegistryDelta,
+    SignatureCorrectnessProof,
+    SimpleTailsAccessor,
+    Witness,
 };
 
 // Mediator class to broker between the high-level vade-evan application issuer and the Ursa issuer class
@@ -47,8 +43,6 @@ impl Issuer {
 
     pub fn create_credential_definition(
         credential_schema: &CredentialSchema,
-        _p_safe: Option<&BigNumber>,
-        _q_safe: Option<&BigNumber>,
     ) -> Result<(CredentialPrivateKey, CryptoCredentialDefinition), Box<dyn Error>> {
         let mut non_credential_schema_builder =
             CryptoIssuer::new_non_credential_schema_builder()
@@ -79,19 +73,8 @@ impl Issuer {
             .map_err(|e| format!("could not finalize credential schema; {}", &e))?;
 
         let (public_key, credential_private_key, credential_key_correctness_proof) = {
-            // if p_safe.is_none() || q_safe.is_none() {
             CryptoIssuer::new_credential_def(&crypto_schema, &non_credential_schema, true)
                 .map_err(|e| format!("could not create credential definition; {}", &e))?
-            // } else {
-            //     CryptoIssuer::new_credential_def_with_primes(
-            //         &crypto_schema,
-            //         &non_credential_schema,
-            //         true,
-            //         p_safe.ok_or("could not get prime number p_safe")?,
-            //         q_safe.ok_or("could not get prime number q_safe")?,
-            //     )
-            //     .map_err(|e| format!("could not create credential definition; {}", &e))?
-            // }
         };
 
         let definition = CryptoCredentialDefinition {
@@ -102,6 +85,8 @@ impl Issuer {
         Ok((credential_private_key, definition))
     }
 
+    // Not used at the moment but might be needed for revocation workflow.
+    #[allow(dead_code)]
     pub fn sign_credential(
         credential_request: &CredentialRequest,
         credential_private_key: &CredentialPrivateKey,
@@ -242,17 +227,40 @@ impl Issuer {
             Err(_) => return Err(Box::from("Unable to revoke credential")),
         }
     }
-
-    pub fn update_revocation_registry(
-        revocation_registry_delta: RevocationRegistryDelta,
-    ) -> RevocationRegistry {
-        let new_registry = RevocationRegistry::from(revocation_registry_delta);
-        return new_registry;
-    }
 }
 
 impl Default for Issuer {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    extern crate utilities;
+
+    use super::*;
+    use crate::crypto::crypto_issuer::Issuer as CryptoIssuer;
+    use std::{collections::HashMap, error::Error};
+    use utilities::test_data::vc_zkp::EXAMPLE_CREDENTIAL_SCHEMA;
+
+    #[test]
+    fn can_create_credential_definition() -> Result<(), Box<dyn Error>> {
+        let credential_schema: CredentialSchema =
+            serde_json::from_str(EXAMPLE_CREDENTIAL_SCHEMA).unwrap();
+        let def: CryptoCredentialDefinition =
+            CryptoIssuer::create_credential_definition(&credential_schema)?.1;
+
+        // Cannot access p_key.r because it is private, therefore serialize it
+        let r_component_str =
+            serde_json::to_string(&serde_json::to_value(&def.public_key).unwrap()["p_key"]["r"])
+                .unwrap(); // :(
+        let r_component: HashMap<String, String> = serde_json::from_str(&r_component_str).unwrap();
+
+        for key in credential_schema.properties.keys() {
+            assert_eq!(r_component.contains_key(key), true);
+        }
+
+        Ok(())
     }
 }

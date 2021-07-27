@@ -14,4 +14,10 @@
   limitations under the License.
 */
 
-pub mod utils;
+export interface AssertionProof {
+  type: string,
+  created: string,
+  proofPurpose: string,
+  verificationMethod: string,
+  jws: string,
+}
