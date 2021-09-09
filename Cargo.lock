@@ -2751,7 +2751,7 @@ dependencies = [
 [[package]]
 name = "vade"
 version = "0.1.0"
-source = "git+ssh://git@git.slock.it/equs/interop/vade/vade.git#9e76511acb74834bf4558c8e27748e5866d5d591"
+source = "git+ssh://git@git.slock.it/equs/interop/vade/vade.git?branch=develop#9e76511acb74834bf4558c8e27748e5866d5d591"
 dependencies = [
  "async-trait",
  "env_logger",
@@ -2796,7 +2796,7 @@ dependencies = [
 [[package]]
 name = "vade-evan-substrate"
 version = "0.1.0"
-source = "git+ssh://git@git.slock.it/equs/interop/vade/vade-evan-substrate.git?branch=hotfix/DID-504-adjust-local-references-to-git-urls#b5f7c16b997f4892e8bd2a40ea560de2ec3717c1"
+source = "git+ssh://git@git.slock.it/equs/interop/vade/vade-evan-substrate.git?branch=develop#66892148cc9d2618bf2771d749882fe94962f2f3"
 dependencies = [
  "async-trait",
  "blake2-rfc",
