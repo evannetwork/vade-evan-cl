@@ -2751,6 +2751,7 @@ dependencies = [
 [[package]]
 name = "vade"
 version = "0.1.0"
+source = "git+ssh://git@git.slock.it/equs/interop/vade/vade.git?branch=develop#9e76511acb74834bf4558c8e27748e5866d5d591"
 dependencies = [
  "async-trait",
  "env_logger",
@@ -2760,7 +2761,7 @@ dependencies = [
 
 [[package]]
 name = "vade-evan-cl"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "async-trait",
  "chrono",
@@ -2794,7 +2795,8 @@ dependencies = [
 
 [[package]]
 name = "vade-evan-substrate"
-version = "0.1.0"
+version = "0.1.1"
+source = "git+ssh://git@git.slock.it/equs/interop/vade/vade-evan-substrate.git?branch=develop#a1a9cfa2ba1a12e8fe8d32034e5c092ab001d846"
 dependencies = [
  "async-trait",
  "blake2-rfc",

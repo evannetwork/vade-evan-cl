@@ -115,7 +115,7 @@ pub mod environment {
         "https://tntkeyservices-c43a.azurewebsites.net/key/sign";
 
     #[allow(dead_code)]
-    pub const DEFAULT_VADE_EVAN_SUBSTRATE_IP: &str = "13.69.59.185";
+    pub const DEFAULT_VADE_EVAN_SUBSTRATE_IP: &str = "substrate-dev.trust-trace.com";
 }
 
 #[allow(dead_code)]
