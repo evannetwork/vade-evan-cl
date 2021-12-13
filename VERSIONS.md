@@ -6,7 +6,7 @@
 
 ### Fixes
 
-- fix M1 by pinning `ring` version to `0.16.19`
+- fix M1 build by pinning `ring` version to `0.16.19`
 
 ### Deprecations
 
