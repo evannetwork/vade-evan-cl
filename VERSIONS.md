@@ -5,6 +5,8 @@
 ### Features
 
 ### Fixes
+- Updated type property for did_create, did_update
+- Disabled remote signing test case
 
 ### Deprecations
 
