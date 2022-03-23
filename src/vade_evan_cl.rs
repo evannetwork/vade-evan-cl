@@ -344,7 +344,8 @@ impl VadeEvanCl {
         let options = format!(
             r###"{{
             "privateKey": "{}",
-            "identity": "{}"
+            "identity": "{}",
+            "type": "substrate"
         }}"###,
             private_key, identity
         );
@@ -378,7 +379,8 @@ impl VadeEvanCl {
             r###"{{
             "privateKey": "{}",
             "identity": "{}",
-            "operation": "setDidDocument"
+            "operation": "setDidDocument",
+            "type": "substrate"
         }}"###,
             &private_key, &identity
         );

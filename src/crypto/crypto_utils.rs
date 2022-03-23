@@ -347,6 +347,7 @@ mod tests {
         Ok(())
     }
 
+    #[ignore] // Test is disabled. 
     #[tokio::test]
     async fn can_sign_messages_remotely() -> Result<(), Box<dyn Error>> {
         let signer: Box<dyn Signer> = Box::new(RemoteSigner::new(
