@@ -1447,7 +1447,7 @@ async fn verify_proof(
 async fn whitelist_identity(vade: &mut Vade) -> Result<(), Box<dyn Error>> {
     let resolver = get_resolver();
 
-    let auth_string =  format!(
+    let auth_string = format!(
         r###"{{
             "privateKey": "{}",
             "identity": "{}",
