@@ -28,7 +28,6 @@ import {
   SubProofRequest,
 } from './application/datatypes';
 import {
-  BigNumber,
   CredentialPrivateKey,
   CredentialSecretsBlindingFactors,
   MasterSecret,
