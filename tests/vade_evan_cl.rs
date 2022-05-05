@@ -1447,9 +1447,18 @@ async fn verify_proof(
 async fn whitelist_identity(vade: &mut Vade) -> Result<(), Box<dyn Error>> {
     let resolver = get_resolver();
 
-    let auth_string = get_options();
+    let auth_string = format!(
+        r###"{{
+            "privateKey": "{}",
+            "identity": "{}",
+            "type": "substrate"
+        }}"###,
+        SIGNER_1_PRIVATE_KEY, SIGNER_1_DID,
+    );
+
     let mut json_editable: Value = serde_json::from_str(&auth_string)?;
     json_editable["operation"] = Value::from("whitelistIdentity");
+
     let options = serde_json::to_string(&json_editable).unwrap();
 
     let result = vade
@@ -1475,7 +1484,8 @@ async fn ensure_whitelist(vade: &mut Vade, signer: &str) -> Result<(), Box<dyn E
     let auth_string = format!(
         r###"{{
             "privateKey": "{}",
-            "identity": "{}"
+            "identity": "{}",
+            "type": "substrate"
         }}"###,
         SIGNER_2_PRIVATE_KEY, SIGNER_2_DID,
     );
