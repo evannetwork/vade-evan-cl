@@ -36,14 +36,14 @@ import {
  * Needs to be stored publicly available and temper-proof.
  */
 export interface CredentialDefinition {
-  id: string,
-  type: string,
-  issuer: string,
-  schema: string,
-  createdAt: string,
-  publicKey: CredentialPublicKey,
-  publicKeyCorrectnessProof: CredentialKeyCorrectnessProof,
-  proof?: AssertionProof,
+  id: string;
+  type: string;
+  issuer: string;
+  schema: string;
+  createdAt: string;
+  publicKey: CredentialPublicKey;
+  publicKeyCorrectnessProof: CredentialKeyCorrectnessProof;
+  proof?: AssertionProof;
 }
 
 /**
@@ -51,22 +51,22 @@ export interface CredentialDefinition {
  * Needs to be stored publicly available and temper-proof.
  */
 export interface CredentialSchema {
-  id: string,
-  type: string,
-  name: string,
-  author: string,
-  createdAt: string,
-  description: string,
-  properties: Record<string, SchemaProperty>,
-  required: string[],
-  additionalProperties: boolean,
-  proof?: AssertionProof,
+  id: string;
+  type: string;
+  name: string;
+  author: string;
+  createdAt: string;
+  description: string;
+  properties: Record<string, SchemaProperty>;
+  required: string[];
+  additionalProperties: boolean;
+  proof?: AssertionProof;
 }
 
 export interface SchemaProperty {
-  type: string,
-  format?: string,
-  items?: string[],
+  type: string;
+  format?: string;
+  items?: string[];
 }
 
 /**
@@ -75,12 +75,12 @@ export interface SchemaProperty {
  * to be used for issuance.
  */
 export interface CredentialOffer {
-  issuer: string,
-  subject: string,
-  type: string,
-  schema: string,
-  credentialDefinition: string,
-  nonce: Nonce,
+  issuer: string;
+  subject: string;
+  type: string;
+  schema: string;
+  credentialDefinition: string;
+  nonce: Nonce;
 }
 
 /**
@@ -89,34 +89,34 @@ export interface CredentialOffer {
  * Incorporates the nonce value sent in `CredentialOffer`.
  */
 export interface CredentialRequest {
-  subject: string,
-  schema: string,
-  credentialDefinition: string,
-  type: string,
-  blindedCredentialSecrets: BlindedCredentialSecrets,
-  blindedCredentialSecretsCorrectnessProof: BlindedCredentialSecretsCorrectnessProof,
-  credentialNonce: Nonce,
-  credentialValues: Record<string, EncodedCredentialValue>,
+  subject: string;
+  schema: string;
+  credentialDefinition: string;
+  type: string;
+  blindedCredentialSecrets: BlindedCredentialSecrets;
+  blindedCredentialSecretsCorrectnessProof: BlindedCredentialSecretsCorrectnessProof;
+  credentialNonce: Nonce;
+  credentialValues: Record<string, EncodedCredentialValue>;
 }
 
 export interface CredentialSignature {
-  type: string,
-  credentialDefinition: string,
-  signature: CryptoCredentialSignature,
-  signatureCorrectnessProof: SignatureCorrectnessProof,
-  issuanceNonce: Nonce,
-  revocationId: number,
-  revocationRegistryDefinition: string,
+  type: string;
+  credentialDefinition: string;
+  signature: CryptoCredentialSignature;
+  signatureCorrectnessProof: SignatureCorrectnessProof;
+  issuanceNonce: Nonce;
+  revocationId: number;
+  revocationRegistryDefinition: string;
 }
 
 export interface CredentialSchemaReference {
-  id: string,
-  type: string,
+  id: string;
+  type: string;
 }
 
 export interface CredentialSubject {
-  id: string,
-  data: Record<string, EncodedCredentialValue>,
+  id: string;
+  data: Record<string, EncodedCredentialValue>;
 }
 
 /**
@@ -125,14 +125,14 @@ export interface CredentialSubject {
  * including revocation info
  */
 export interface Credential {
-  '@context': string[],
-  id: string,
-  type: string[],
-  issuer: string,
-  issuanceDate: string,
-  credentialSubject: CredentialSubject,
-  credentialSchema: CredentialSchemaReference,
-  proof: CredentialSignature,
+  '@context': string[];
+  id: string;
+  type: string[];
+  issuer: string;
+  issuanceDate: string;
+  credentialSubject: CredentialSubject;
+  credentialSchema: CredentialSchemaReference;
+  proof: CredentialSignature;
 }
 
 /**
@@ -143,21 +143,21 @@ export interface Credential {
  * Needs to be stored publicly available and temper-proof.
  */
 export interface RevocationRegistryDefinition {
-  id: string,
-  credentialDefinition: string,
-  updatedAt: string,
-  registry: RevocationRegistry,
-  registryDelta: RevocationRegistryDelta,
-  deltaHistory: DeltaHistory[],
-  tails: RevocationTailsGenerator,
-  revocationPublicKey: RevocationKeyPublic,
-  maximumCredentialCount: number,
-  proof?: AssertionProof,
+  id: string;
+  credentialDefinition: string;
+  updatedAt: string;
+  registry: RevocationRegistry;
+  registryDelta: RevocationRegistryDelta;
+  deltaHistory: DeltaHistory[];
+  tails: RevocationTailsGenerator;
+  revocationPublicKey: RevocationKeyPublic;
+  maximumCredentialCount: number;
+  proof?: AssertionProof;
 }
 
 export interface DeltaHistory {
-  created: number,
-  delta: RevocationRegistryDelta,
+  created: number;
+  delta: RevocationRegistryDelta;
 }
 
 /**
@@ -166,11 +166,11 @@ export interface DeltaHistory {
  * and update the witness with all deltas that are newer than the `updated` property of the `RevocationState`.
  */
 export interface RevocationState {
-  credentialId: string,
-  revocationId: number,
-  updated: number,
-  delta: RevocationRegistryDelta,
-  witness: Witness,
+  credentialId: string;
+  revocationId: number;
+  updated: number;
+  delta: RevocationRegistryDelta;
+  witness: Witness;
 }
 
 /**
@@ -178,51 +178,51 @@ export interface RevocationState {
  * Specifies the schema to be used for the credential.
  */
 export interface CredentialProposal {
-  issuer: string,
-  subject: string,
-  type: string,
-  schema: string,
+  issuer: string;
+  subject: string;
+  type: string;
+  schema: string;
 }
 
 export interface SubProofRequest {
-  schema: string,
-  revealedAttributes: string[],
+  schema: string;
+  revealedAttributes: string[];
 }
 
 /**
  * Message sent by a verifier to prompt a prover to prove one or many assertions.
  */
 export interface ProofRequest {
-  verifier: string,
-  prover: string,
-  createdAt: string,
-  nonce: Nonce,
-  subProofRequests: SubProofRequest[],
+  verifier: string;
+  prover: string;
+  createdAt: string;
+  nonce: Nonce;
+  subProofRequests: SubProofRequest[];
 }
 
 export interface CredentialSubProof {
-  credentialDefinition: string,
-  revocationRegistryDefinition: string,
-  proof: string,
+  credentialDefinition: string;
+  revocationRegistryDefinition: string;
+  proof: string;
 }
 
 export interface AggregatedProof {
-  nonce: Nonce,
-  aggregatedProof: string,
+  nonce: Nonce;
+  aggregatedProof: string;
 }
 
 /**
  * A single proof of a schema requested in a `ProofRequest` that reveals the requested attributes.
  */
 export interface ProofCredential {
-  '@context': string[],
-  id: string,
-  type: string[],
-  issuer: string,
-  issuanceDate: string,
-  credentialSubject: CredentialSubject,
-  credentialSchema: CredentialSchemaReference,
-  proof: CredentialSubProof,
+  '@context': string[];
+  id: string;
+  type: string[];
+  issuer: string;
+  issuanceDate: string;
+  credentialSubject: CredentialSubject;
+  credentialSchema: CredentialSchemaReference;
+  proof: CredentialSubProof;
 }
 
 /**
@@ -230,26 +230,26 @@ export interface ProofCredential {
  * a `ProofRequest`.
  */
 export interface ProofPresentation {
-  '@context': string[],
-  id: string,
-  type: string[],
-  verifiableCredential: ProofCredential[],
-  proof: AggregatedProof,
+  '@context': string[];
+  id: string;
+  type: string[];
+  verifiableCredential: ProofCredential[];
+  proof: AggregatedProof;
 }
 
 export interface ProofVerification {
-  presentedProof: string,
-  status: string,
-  reason?: string,
+  presentedProof: string;
+  status: string;
+  reason?: string;
 }
 
 export interface EncodedCredentialValue {
-  raw: string,
-  encoded: string,
+  raw: string;
+  encoded: string;
 }
 
 export interface RevocationIdInformation {
-  definitionId: string,
-  nextUnusedId: number,
-  usedIds: number[],
+  definitionId: string;
+  nextUnusedId: number;
+  usedIds: number[];
 }
