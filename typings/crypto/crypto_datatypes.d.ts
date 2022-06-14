@@ -15,9 +15,9 @@
 */
 
 export interface AssertionProof {
-  type: string,
-  created: string,
-  proofPurpose: string,
-  verificationMethod: string,
-  jws: string,
+  type: string;
+  created: string;
+  proofPurpose: string;
+  verificationMethod: string;
+  jws: string;
 }
