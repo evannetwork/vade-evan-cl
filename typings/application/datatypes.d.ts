@@ -197,6 +197,7 @@ export interface ProofRequest {
   prover: string;
   createdAt: string;
   nonce: Nonce;
+  type: string;
   subProofRequests: SubProofRequest[];
 }
 
