@@ -87,6 +87,7 @@
 #[macro_use]
 extern crate log;
 extern crate vade_evan_substrate;
+extern crate vade_signer;
 
 pub mod application;
 pub(crate) mod crypto;
