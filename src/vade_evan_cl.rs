@@ -44,7 +44,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, error::Error};
 use ursa::cl::{constants::LARGE_PRIME, helpers::generate_safe_prime, Witness};
 use vade::{Vade, VadePlugin, VadePluginResultValue};
-use vade_evan_substrate::signing::Signer;
+use vade_signer::Signer;
 
 const EVAN_METHOD: &str = "did:evan";
 const EVAN_METHOD_ZKP: &str = "did:evan:zkp";

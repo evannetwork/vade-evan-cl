@@ -49,7 +49,7 @@ use ursa::cl::{
     RevocationRegistryDelta,
     RevocationTailsGenerator,
 };
-use vade_evan_substrate::signing::Signer;
+use vade_signer::Signer;
 
 #[cfg(not(target_arch = "wasm32"))]
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -524,7 +524,7 @@ mod tests {
         did::{EXAMPLE_DID_1, EXAMPLE_DID_DOCUMENT_1},
         vc_zkp::EXAMPLE_CREDENTIAL_SCHEMA,
     };
-    use vade_evan_substrate::signing::{LocalSigner, Signer};
+    use vade_signer::{LocalSigner, Signer};
 
     #[tokio::test]
     async fn can_create_schema() -> Result<(), Box<dyn Error>> {

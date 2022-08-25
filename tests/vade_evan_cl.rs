@@ -67,11 +67,8 @@ use vade_evan_cl::{
     IssueCredentialResult,
     VadeEvanCl,
 };
-use vade_evan_substrate::{
-    signing::{LocalSigner, Signer},
-    ResolverConfig,
-    VadeEvanSubstrate,
-};
+use vade_evan_substrate::{ResolverConfig, VadeEvanSubstrate};
+use vade_signer::{LocalSigner, Signer};
 
 const EVAN_METHOD: &str = "did:evan";
 const TYPE_OPTIONS: &str = r#"{ "type": "cl" }"#;

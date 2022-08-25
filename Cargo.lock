@@ -2762,7 +2762,7 @@ dependencies = [
 
 [[package]]
 name = "vade-evan-cl"
-version = "0.1.3"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -2789,6 +2789,7 @@ dependencies = [
  "uuid",
  "vade",
  "vade-evan-substrate",
+ "vade-signer",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-bindgen-test",
@@ -2797,9 +2798,9 @@ dependencies = [
 
 [[package]]
 name = "vade-evan-substrate"
-version = "0.1.3"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92dac1bc6ef3c8903774ff2bea7025b28d2706901afc2a05cb8b12a43548cead"
+checksum = "4cc4b84f68dbdaa8cb0aa0aad215b72f7a7cff99d8abd0e13413de7173555773"
 dependencies = [
  "async-trait",
  "blake2-rfc",
@@ -2830,10 +2831,30 @@ dependencies = [
  "thiserror",
  "twox-hash",
  "vade",
+ "vade-signer",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
  "ws",
+]
+
+[[package]]
+name = "vade-signer"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "321884ca81c3ab83d696899142b55892c5e1072b1f457af7883a9b16ddeb2a9c"
+dependencies = [
+ "async-trait",
+ "byteorder",
+ "hex",
+ "libsecp256k1",
+ "log",
+ "rand 0.7.3",
+ "reqwest 0.11.4",
+ "serde",
+ "serde_json",
+ "sha2",
+ "sha3",
 ]
 
 [[package]]

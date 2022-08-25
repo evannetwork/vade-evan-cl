@@ -22,7 +22,7 @@ use serde_json::{value::RawValue, Value};
 use sha2::{Digest, Sha256};
 use sha3::Keccak256;
 use std::{convert::TryInto, error::Error};
-use vade_evan_substrate::signing::Signer;
+use vade_signer::Signer;
 
 #[cfg(not(target_arch = "wasm32"))]
 use chrono::Utc;
@@ -273,7 +273,7 @@ mod tests {
         environment::DEFAULT_VADE_EVAN_SIGNING_URL,
         vc_zkp::EXAMPLE_CREDENTIAL_SCHEMA,
     };
-    use vade_evan_substrate::signing::{LocalSigner, RemoteSigner, Signer};
+    use vade_signer::{LocalSigner, RemoteSigner, Signer};
 
     #[derive(Serialize, Deserialize)]
     struct JwsDoc {
@@ -347,7 +347,7 @@ mod tests {
         Ok(())
     }
 
-    #[ignore] // Test is disabled. 
+    #[ignore] // Test is disabled.
     #[tokio::test]
     async fn can_sign_messages_remotely() -> Result<(), Box<dyn Error>> {
         let signer: Box<dyn Signer> = Box::new(RemoteSigner::new(
