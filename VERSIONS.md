@@ -4,6 +4,8 @@
 
 ### Features
 
+- update signing to use `vade-signer` instead of `vade-evan-substrate`
+
 ### Fixes
 
 - Updated type property for did_create, did_update
